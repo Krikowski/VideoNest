@@ -1,0 +1,6 @@
+@VideoNest_HostAddress = http://localhost:5125
+
+GET {{VideoNest_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

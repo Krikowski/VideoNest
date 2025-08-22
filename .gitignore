@@ -20,3 +20,9 @@ rad.json
 *.flf
 #Test results file
 TestResults.xml
+VideoNest/.vs/VideoNest/v17/DocumentLayout.json
+VideoNest/.vs/VideoNest/v17/DocumentLayout.backup.json
+VideoNest/.vs/VideoNest/v17/.suo
+VideoNest/.vs/VideoNest/FileContentIndex/e0a2c178-f015-4ffb-92d1-5846ef7dd79d.vsidx
+VideoNest/.vs/VideoNest/FileContentIndex/cf91da7b-c389-4e8a-801a-8ddd48b201d1.vsidx
+VideoNest/.vs/VideoNest/config/applicationhost.config
