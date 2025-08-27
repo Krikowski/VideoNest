@@ -25,3 +25,7 @@ TestResults.xml
 *.pdb
 /VideoNest/.vs
 /VideoNest/bin
+VideoNest/obj/Debug/net8.0/VideoNest.assets.cache
+/VideoNest/obj
+/VideoNest/obj/Debug/*
+
