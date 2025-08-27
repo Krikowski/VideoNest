@@ -1,15 +1,27 @@
 
+using VideoNest.Data;
+using Microsoft.EntityFrameworkCore;
+using VideoNest.Data;
+using VideoNest.Repositories;
+using VideoNest.Services;
+
 namespace VideoNest {
     public class Program {
         public static void Main(string[] args) {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
-
+            // Adicionar serviços ao contêiner
             builder.Services.AddControllers();
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
+
+            // Configurar o DbContext para PostgreSQL
+            builder.Services.AddDbContext<VideoDbContext>(options =>
+                options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+            // Registrar o repositório
+            builder.Services.AddScoped<IVideoRepository, VideoRepository>();
+            builder.Services.AddScoped<IVideoService, VideoService>();
 
             var app = builder.Build();
 
@@ -20,12 +32,8 @@ namespace VideoNest {
             }
 
             app.UseHttpsRedirection();
-
             app.UseAuthorization();
-
-
             app.MapControllers();
-
             app.Run();
         }
     }
