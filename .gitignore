@@ -20,17 +20,8 @@ rad.json
 *.flf
 #Test results file
 TestResults.xml
-VideoNest/.vs/VideoNest/v17/DocumentLayout.json
-VideoNest/.vs/VideoNest/v17/DocumentLayout.backup.json
-VideoNest/.vs/VideoNest/v17/.suo
-VideoNest/.vs/VideoNest/FileContentIndex/e0a2c178-f015-4ffb-92d1-5846ef7dd79d.vsidx
-VideoNest/.vs/VideoNest/FileContentIndex/cf91da7b-c389-4e8a-801a-8ddd48b201d1.vsidx
-VideoNest/.vs/VideoNest/config/applicationhost.config
-VideoNest/.vs/VideoNest/FileContentIndex/fbfc7a1d-c32e-4d62-b088-c165cbd81bd2.vsidx
 *.vsidx
-/VideoNest/bin/Debug/net8.0
-/VideoNest/bin/Debug/net8.0
-/VideoNest/bin/Debug
-/VideoNest/bin
 /VideoNest/obj
-\VideoNest\obj\Debug\*
+*.pdb
+/VideoNest/.vs
+/VideoNest/bin
