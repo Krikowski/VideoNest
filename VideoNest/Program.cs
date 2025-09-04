@@ -1,9 +1,12 @@
 
 using VideoNest.Data;
 using Microsoft.EntityFrameworkCore;
-using VideoNest.Data;
+using Microsoft.AspNetCore.Http.Features;
 using VideoNest.Repositories;
 using VideoNest.Services;
+using Microsoft.OpenApi.Models;
+using VideoNest.Filters;
+using VideoNest.Service;
 
 namespace VideoNest {
     public class Program {
@@ -21,7 +24,28 @@ namespace VideoNest {
 
             // Registrar o repositório
             builder.Services.AddScoped<IVideoRepository, VideoRepository>();
-            builder.Services.AddScoped<IVideoService, VideoService>();
+            builder.Services.AddScoped<VideoService>();
+            builder.Services.AddSingleton<RabbitMQPublisher>();
+
+            // Configurar limite do Kestrel
+            builder.WebHost.ConfigureKestrel(options =>
+            {
+                options.Limits.MaxRequestBodySize = 100_000_000; // 100 MB
+            });
+
+            // Configurar limite do multipart/form-data
+            builder.Services.Configure<FormOptions>(options =>
+            {
+                options.MultipartBodyLengthLimit = 100_000_000; // 100 MB
+            });
+
+            builder.Services.AddSwaggerGen(c =>
+            {
+                c.SwaggerDoc("v1", new OpenApiInfo { Title = "VideoNest API", Version = "v1" });
+
+                // Adicionar suporte para multipart/form-data
+                c.OperationFilter<FileUploadOperationFilter>();
+            });
 
             var app = builder.Build();
 

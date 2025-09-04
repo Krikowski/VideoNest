@@ -4,9 +4,9 @@ using VideoNest.Models;
 
 namespace VideoNest.Services {
     public interface IVideoService {
-        
-        Task<int> CreateVideoAsync(VideoUploadRequest request);
-
-        Task <VideoDB> BuscaVideoPorIDService(int id);
+                
+        Task<VideoDB> BuscaVideoPorIDService(int id); //Busca informaççoes por ID
+      
+        Task<int> UploadVideoAsync(IFormFile file, VideoUploadRequest request); //Upload video file
     }
 }

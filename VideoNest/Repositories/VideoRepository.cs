@@ -1,23 +1,25 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using System.Threading.Tasks;
 using VideoNest.Data;
 using VideoNest.Models;
 
 namespace VideoNest.Repositories {
     public class VideoRepository : IVideoRepository {
-        private readonly VideoDbContext _context;
+        private readonly VideoDbContext _dbContext;
 
-        public VideoRepository(VideoDbContext context) {
-            _context = context;
+        public VideoRepository(VideoDbContext dbContext) {
+            _dbContext = dbContext;
         }
 
         public async Task SaveVideoAsync(VideoDB video) {
-            video.CreatedAt = DateTime.UtcNow; // Define a data de criação
-            await _context.Videos.AddAsync(video);
-            await _context.SaveChangesAsync();
+            _dbContext.Videos.Add(video);
+            await _dbContext.SaveChangesAsync();
         }
 
-        public async Task<VideoDB> GetVideoByIdAsync(int id) {
-            return await _context.Videos.FindAsync(id);
+        public async Task<VideoDB?> GetVideoByIdAsync(int id) {
+            return await _dbContext.Videos
+                .Include(v => v.QRCodes)
+                .FirstOrDefaultAsync(v => v.Id == id);
         }
     }
 }

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using VideoNest.Data;
@@ -11,9 +12,11 @@ using VideoNest.Data;
 namespace VideoNest.Migrations
 {
     [DbContext(typeof(VideoDbContext))]
-    partial class VideoDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250829130430_AddStatusAndFilePathToVideo")]
+    partial class AddStatusAndFilePathToVideo
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -22,30 +25,6 @@ namespace VideoNest.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("VideoNest.Models.QRCodeResult", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Content")
-                        .HasColumnType("text");
-
-                    b.Property<int>("Timestamp")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("VideoId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VideoId");
-
-                    b.ToTable("QRCodes");
-                });
-
             modelBuilder.Entity("VideoNest.Models.VideoDB", b =>
                 {
                     b.Property<int>("Id")
@@ -54,43 +33,31 @@ namespace VideoNest.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime?>("CreatedAt")
+                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<int>("Duration")
                         .HasColumnType("integer");
 
                     b.Property<string>("FilePath")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Status")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Title")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.HasKey("Id");
 
                     b.ToTable("Videos");
-                });
-
-            modelBuilder.Entity("VideoNest.Models.QRCodeResult", b =>
-                {
-                    b.HasOne("VideoNest.Models.VideoDB", "Video")
-                        .WithMany("QRCodes")
-                        .HasForeignKey("VideoId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Video");
-                });
-
-            modelBuilder.Entity("VideoNest.Models.VideoDB", b =>
-                {
-                    b.Navigation("QRCodes");
                 });
 #pragma warning restore 612, 618
         }
