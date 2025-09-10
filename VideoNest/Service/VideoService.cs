@@ -28,9 +28,15 @@ namespace VideoNest.Service {
             try {
                 // Definir caminhos
                 var fileName = Path.GetFileName(request.File.FileName);
-                var savePath = Path.Combine("/videos", fileName); // Para Docker
-                var hostPath = Path.Combine("C:\\Estudos\\Hackaton_FIAP\\videos", fileName); // Para Windows
+                string savePath;
+                string hostPath;
 
+                if (Environment.OSVersion.Platform == PlatformID.Win32NT) {
+                    hostPath = Path.Combine("C:\\Estudos\\Hackaton_FIAP\\videos", fileName);
+                    savePath = hostPath;
+                } else {
+                    hostPath = savePath = Path.Combine("/videos", fileName).Replace("\\", "/");
+                }
                 // Criar diretório
                 var directory = Path.GetDirectoryName(hostPath);
                 if (!string.IsNullOrEmpty(directory)) {
