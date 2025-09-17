@@ -4,6 +4,6 @@ using System.Threading.Tasks;
 namespace VideoNest.Repositories {
     public interface IVideoRepository {
         Task SaveVideoAsync(VideoDB video);
-        Task<VideoDB?> GetVideoByIdAsync(int id); // Alterado para Task<VideoDB?>
+        Task<VideoDB?> GetVideoByIdAsync(int id); 
     }
 }
