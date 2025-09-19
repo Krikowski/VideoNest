@@ -1,28 +1,51 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <UserSecretsId>cbe265a2-b652-4c86-a206-388be23ed6d5</UserSecretsId>
-    <DockerDefaultTargetOS>Windows</DockerDefaultTargetOS>
-    <DockerfileContext>.</DockerfileContext>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<UserSecretsId>cbe265a2-b652-4c86-a206-388be23ed6d5</UserSecretsId>
+		<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+		<PublishTrimmed>false</PublishTrimmed>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.8" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.8">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.8" />
-    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.21.0" />
-    <PackageReference Include="MongoDB.Bson" Version="3.5.0" />
-    <PackageReference Include="MongoDB.Driver" Version="3.5.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
-    <PackageReference Include="RabbitMQ.Client" Version="6.4.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
-  </ItemGroup>
+	<ItemGroup>
+		<!-- Web API e Swagger -->
+		<PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+
+		<!-- MongoDB -->
+		<PackageReference Include="MongoDB.Driver" Version="2.23.1" />
+		<PackageReference Include="MongoDB.Bson" Version="2.23.1" />
+
+		<!-- Redis -->
+		<PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="8.0.0" />
+		<PackageReference Include="StackExchange.Redis" Version="2.7.33" />
+
+		<!-- RabbitMQ -->
+		<PackageReference Include="RabbitMQ.Client" Version="6.8.1" />
+
+		<!-- Prometheus (BONUS) -->
+		<PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
+
+		<!-- JSON -->
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+
+		<!-- Serilog para logs estruturados (BONUS) -->
+		<PackageReference Include="Serilog.AspNetCore" Version="8.0.1" />
+		<PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
+	</ItemGroup>
+
+	<!-- Pastas necessárias -->
+	<ItemGroup>
+		<Folder Include="Controllers\" />
+		<Folder Include="DTO\" />
+		<Folder Include="Models\" />
+		<Folder Include="Repositories\" />
+		<Folder Include="Services\" />
+		<Folder Include="Hubs\" />
+		<Folder Include="Filters\" />
+		<Folder Include="wwwroot\" />
+	</ItemGroup>
 
 </Project>

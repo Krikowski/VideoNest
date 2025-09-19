@@ -1,6 +1,7 @@
 ﻿using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using System.Linq;
+using Microsoft.AspNetCore.Http;
 
 namespace VideoNest.Filters {
     public class FileUploadOperationFilter : IOperationFilter {
@@ -20,11 +21,9 @@ namespace VideoNest.Filters {
                                         Format = "binary"
                                     },
                                     ["Title"] = new OpenApiSchema { Type = "string" },
-                                    ["Description"] = new OpenApiSchema { Type = "string" },
-                                    ["Duration"] = new OpenApiSchema { Type = "integer", Format = "int32" },
-                                    ["CustomFileName"] = new OpenApiSchema { Type = "string", Nullable = true }
+                                    ["Description"] = new OpenApiSchema { Type = "string" }
                                 },
-                                Required = new HashSet<string> { "file", "Title", "Description", "Duration" }
+                                Required = new HashSet<string> { "file" }
                             }
                         }
                     }
