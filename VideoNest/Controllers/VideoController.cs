@@ -1,19 +1,12 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.Logging;
-using System;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using VideoNest.DTO;
 using VideoNest.Hubs;
-using VideoNest.Models;
 using VideoNest.Services;
 
 namespace VideoNest.Controllers {
     /// <summary>
-    /// Controller para gerenciamento de vídeos
-    /// FASE 02-04: Upload, status e resultados
+    /// API para upload e consulta de vídeos com detecção de QR Codes
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
@@ -32,16 +25,12 @@ namespace VideoNest.Controllers {
         }
 
         /// <summary>
-        /// FASE 02: Upload de vídeo via API
+        /// Upload de vídeo (.mp4, .avi) para processamento assíncrono
         /// </summary>
-        /// <remarks>
-        /// Envia um arquivo de vídeo (.mp4, .avi) para processamento assíncrono.
-        /// O vídeo é salvo, registrado no MongoDB e adicionado à fila RabbitMQ.
-        /// </remarks>
-        /// <param name="request">Dados do upload incluindo arquivo e metadados</param>
-        /// <returns>ID do vídeo e mensagem de confirmação</returns>
+        /// <param name="request">Arquivo e metadados do vídeo</param>
+        /// <returns>ID do vídeo e confirmação</returns>
         /// <response code="200">Upload realizado com sucesso</response>
-        /// <response code="400">Arquivo inválido ou parâmetros incorretos</response>
+        /// <response code="400">Arquivo inválido (formato, tamanho)</response>
         /// <response code="500">Erro interno do servidor</response>
         [HttpPost]
         [Consumes("multipart/form-data")]
@@ -49,113 +38,75 @@ namespace VideoNest.Controllers {
         [ProducesResponseType(typeof(object), 400)]
         [ProducesResponseType(typeof(object), 500)]
         public async Task<IActionResult> UploadVideo([FromForm] VideoUploadRequest request) {
+            if (!ModelState.IsValid) {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .Where(e => e != null)
+                    .ToList();
+
+                _logger.LogWarning("Validação automática falhou: {Errors}", string.Join(", ", errors));
+                return BadRequest(new { Message = "Validação falhou", Errors = errors });
+            }
+
+            if (!request.TryValidate(out var validationError)) {
+                _logger.LogWarning("Validação customizada falhou: {Error}", validationError);
+                return BadRequest(new { Message = validationError });
+            }
+
+            var metadata = request.GetMetadata();
+            _logger.LogInformation("Iniciando upload: {Title} ({Size}MB) - {FileName}{Extension}",
+                metadata.Title,
+                Math.Round((double)metadata.FileSizeBytes / (1024 * 1024), 1),
+                metadata.FileName,
+                metadata.FileExtension);
+
             try {
-                // Validação inicial no controller (defesa em profundidade)
-                if (request?.File == null || request.File.Length == 0) {
-                    _logger.LogWarning("Tentativa de upload sem arquivo");
-                    return BadRequest(new { Message = "Arquivo de vídeo é obrigatório." });
-                }
-
-                var allowedExtensions = new[] { ".mp4", ".avi" };
-                var extension = Path.GetExtension(request.File.FileName)?.ToLowerInvariant();
-
-                if (!allowedExtensions.Contains(extension)) {
-                    _logger.LogWarning("Formato inválido enviado: {Extension}", extension);
-                    return BadRequest(new {
-                        Message = "Formato inválido. Aceitos: .mp4, .avi",
-                        AllowedFormats = allowedExtensions
-                    });
-                }
-
-                // Validação de tamanho (100MB)
-                if (request.File.Length > 100 * 1024 * 1024) {
-                    _logger.LogWarning("Arquivo muito grande: {Size} bytes", request.File.Length);
-                    return BadRequest(new {
-                        Message = "Arquivo muito grande. Máximo: 100MB",
-                        MaxSize = "100MB"
-                    });
-                }
-
-                _logger.LogInformation("Iniciando upload: {Title} ({Size} bytes)",
-                    request.Title ?? "Sem título", request.File.Length);
-
-                // Chamar serviço (FASE 02)
                 var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-                int videoId = await _videoService.UploadVideoAsync(request.File, request);
+
+                int videoId = await _videoService.UploadVideoAsync(request.File!, request);
+
                 stopwatch.Stop();
 
-                _logger.LogInformation("Upload concluído: VideoId={VideoId} em {ElapsedMs}ms",
+                _logger.LogInformation("Upload concluído com sucesso: VideoId={VideoId} em {ElapsedMs}ms",
                     videoId, stopwatch.ElapsedMilliseconds);
 
+                // 5. Resposta enriquecida com metadados
                 return Ok(new {
                     VideoId = videoId,
-                    Message = "Vídeo enviado para processamento assíncrono.",
-                    ElapsedMs = stopwatch.ElapsedMilliseconds
+                    Message = "Vídeo enviado para fila de processamento assíncrono.",
+                    ElapsedMs = stopwatch.ElapsedMilliseconds,
+                    FileInfo = new {
+                        Name = metadata.FileName,
+                        Extension = metadata.FileExtension,
+                        SizeMB = Math.Round((double)metadata.FileSizeBytes / (1024 * 1024), 1),
+                        Title = metadata.Title
+                    }
                 });
             } catch (ArgumentException ex) {
-                _logger.LogWarning(ex, "Erro de validação no upload: {Title}", request?.Title);
+                _logger.LogWarning(ex, "Erro de validação no upload: {Title}", request.Title);
                 return BadRequest(new { Message = ex.Message });
             } catch (InvalidOperationException ex) {
-                _logger.LogError(ex, "Erro operacional no upload: {Title}", request?.Title);
+                _logger.LogError(ex, "Erro operacional no upload: {Title}", request.Title);
                 return StatusCode(500, new { Message = "Erro ao processar upload", Details = ex.Message });
             } catch (Exception ex) {
-                _logger.LogError(ex, "Erro inesperado no upload: {Title}", request?.Title);
+                _logger.LogError(ex, "Erro inesperado no upload: {Title}", request.Title);
                 return StatusCode(500, new { Message = "Erro interno do servidor", Details = ex.Message });
             }
         }
 
         /// <summary>
-        /// FASE 01: Teste de fila RabbitMQ (endpoint temporário)
+        /// Consulta status do processamento do vídeo
         /// </summary>
-        /// <remarks>
-        /// Envia uma mensagem de teste para a fila RabbitMQ.
-        /// Útil para validar a configuração de mensageria durante desenvolvimento.
-        /// </remarks>
-        /// <param name="request">Mensagem de teste</param>
-        /// <returns>Confirmação de envio</returns>
-        /// <response code="200">Mensagem enviada com sucesso</response>
-        /// <response code="400">Mensagem inválida</response>
-        [HttpPost("testqueue")]
-        [ProducesResponseType(typeof(object), 200)]
-        [ProducesResponseType(typeof(object), 400)]
-        public IActionResult TestQueue([FromBody] TestQueueRequest request) {
-            try {
-                if (string.IsNullOrWhiteSpace(request?.Message)) {
-                    return BadRequest(new { Message = "Mensagem de teste é obrigatória" });
-                }
-
-                _videoService.PublishTestMessage(request.Message);
-
-                _logger.LogInformation("Teste de fila executado: {Message}", request.Message);
-
-                return Ok(new {
-                    Message = "Mensagem de teste enviada para fila com sucesso",
-                    Queue = "video_queue",
-                    Content = request.Message
-                });
-            } catch (InvalidOperationException ex) {
-                _logger.LogError(ex, "Erro no teste de fila: {Message}", request?.Message);
-                return StatusCode(500, new { Message = "Erro ao testar fila", Details = ex.Message });
-            } catch (Exception ex) {
-                _logger.LogError(ex, "Erro inesperado no teste de fila");
-                return StatusCode(500, new { Message = "Erro interno", Details = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// FASE 02: Consulta do status do processamento
-        /// </summary>
-        /// <remarks>
-        /// Retorna o status atual do processamento do vídeo.
-        /// Status possíveis: "Na Fila", "Processando", "Concluído", "Erro".
-        /// </remarks>
         /// <param name="id">ID do vídeo</param>
         /// <returns>Status atual e metadados</returns>
         /// <response code="200">Status encontrado</response>
+        /// <response code="400">ID inválido</response>
         /// <response code="404">Vídeo não encontrado</response>
         /// <response code="500">Erro interno</response>
         [HttpGet("{id}/status")]
         [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(typeof(object), 400)]
         [ProducesResponseType(typeof(object), 404)]
         [ProducesResponseType(typeof(object), 500)]
         public async Task<IActionResult> GetVideoStatus(int id) {
@@ -165,8 +116,8 @@ namespace VideoNest.Controllers {
                 }
 
                 _logger.LogDebug("Consultando status: VideoId={VideoId}", id);
-
                 var video = await _videoService.BuscaVideoPorIDService(id);
+
                 if (video == null) {
                     _logger.LogWarning("Vídeo não encontrado: VideoId={VideoId}", id);
                     return NotFound(new { Message = "Vídeo não encontrado" });
@@ -179,7 +130,7 @@ namespace VideoNest.Controllers {
                     Duration = video.Duration,
                     CreatedAt = video.CreatedAt,
                     ErrorMessage = video.Status == "Erro" ? video.ErrorMessage : null,
-                    Progress = GetProgressPercentage(video.Status)
+                    LastUpdated = DateTime.UtcNow
                 };
 
                 _logger.LogDebug("Status retornado: VideoId={VideoId}, Status={Status}", id, video.Status);
@@ -194,14 +145,10 @@ namespace VideoNest.Controllers {
         }
 
         /// <summary>
-        /// FASE 02: Consulta dos resultados do processamento
+        /// Consulta resultados da análise de QR Codes
         /// </summary>
-        /// <remarks>
-        /// Retorna a lista de QR Codes detectados com timestamps.
-        /// Disponível apenas após conclusão do processamento.
-        /// </remarks>
         /// <param name="id">ID do vídeo</param>
-        /// <returns>Resultados do processamento</returns>
+        /// <returns>Lista de QR Codes com timestamps</returns>
         /// <response code="200">Resultados encontrados</response>
         /// <response code="400">Processamento não concluído ou erro</response>
         /// <response code="404">Vídeo não encontrado</response>
@@ -218,14 +165,13 @@ namespace VideoNest.Controllers {
                 }
 
                 _logger.LogDebug("Consultando resultados: VideoId={VideoId}", id);
-
                 var video = await _videoService.BuscaVideoPorIDService(id);
+
                 if (video == null) {
                     _logger.LogWarning("Vídeo não encontrado: VideoId={VideoId}", id);
                     return NotFound(new { Message = "Vídeo não encontrado" });
                 }
 
-                // Validação de status
                 if (video.Status == "Erro") {
                     return BadRequest(new {
                         Message = "Processamento falhou",
@@ -238,29 +184,39 @@ namespace VideoNest.Controllers {
                     return BadRequest(new {
                         Message = "Processamento não concluído",
                         CurrentStatus = video.Status,
-                        VideoId = id
+                        VideoId = id,
+                        ExpectedStatus = "Concluído"
                     });
                 }
 
                 var qrResults = video.QRCodes.Select(qr => new {
                     Content = qr.Content ?? string.Empty,
                     Timestamp = qr.Timestamp,
-                    TimestampFormatted = $"{qr.Timestamp}s"
+                    TimestampFormatted = FormatTimestamp(qr.Timestamp)
                 }).ToList();
+
+                var processingTime = video.CreatedAt.HasValue
+                    ? DateTime.UtcNow - video.CreatedAt.Value
+                    : TimeSpan.Zero;
 
                 var response = new {
                     VideoId = video.VideoId,
                     Title = video.Title,
                     Status = video.Status,
                     Duration = video.Duration,
-                    TotalQRCodes = qrResults.Count,
+                    TotalQRCodes = qrResults.Count(),
                     QRCodes = qrResults,
-                    ProcessingTime = video.CreatedAt.HasValue ?
-                        DateTime.UtcNow - video.CreatedAt.Value : TimeSpan.Zero
+                    ProcessingTime = processingTime.ToString(@"hh\:mm\:ss"),
+                    AnalysisSummary = new {
+                        Density = qrResults.Any() ?
+                            Math.Round((double)qrResults.Count() * 60 / video.Duration, 1) : 0,
+                        Coverage = qrResults.Any() ?
+                            $"{Math.Round((double)(qrResults.Max(r => r.Timestamp) - qrResults.Min(r => r.Timestamp)) / video.Duration * 100, 1)}% do vídeo" : "Nenhum QR Code"
+                    }
                 };
 
                 _logger.LogInformation("Resultados retornados: VideoId={VideoId}, QRCodes={Count}",
-                    id, qrResults.Count);
+                    id, qrResults.Count());
 
                 return Ok(response);
             } catch (InvalidOperationException ex) {
@@ -272,102 +228,20 @@ namespace VideoNest.Controllers {
             }
         }
 
-        /// <summary>
-        /// FASE 03: Atualizar status do vídeo (endpoint interno para ScanForge)
-        /// </summary>
-        /// <param name="videoId">ID do vídeo</param>
-        /// <param name="request">Dados de status</param>
-        /// <returns>Confirmação de atualização</returns>
-        [HttpPut("{id}/status")]
-        [ApiExplorerSettings(IgnoreApi = true)] // Endpoint interno
-        public async Task<IActionResult> UpdateVideoStatus(int id, [FromBody] UpdateStatusRequest request) {
-            try {
-                if (id <= 0 || string.IsNullOrWhiteSpace(request.Status)) {
-                    return BadRequest(new { Message = "Parâmetros inválidos" });
-                }
-
-                await _videoService.UpdateVideoStatusAsync(id, request.Status, request.ErrorMessage, request.Duration);
-
-                return Ok(new {
-                    Message = "Status atualizado com sucesso",
-                    VideoId = id,
-                    NewStatus = request.Status
-                });
-            } catch (Exception ex) {
-                _logger.LogError(ex, "Erro ao atualizar status: VideoId={VideoId}", id);
-                return StatusCode(500, new { Message = "Erro ao atualizar status", Details = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// FASE 03: Adicionar QR Codes (endpoint interno para ScanForge)
-        /// </summary>
-        /// <param name="videoId">ID do vídeo</param>
-        /// <param name="request">Lista de QR Codes</param>
-        /// <returns>Confirmação de adição</returns>
-        [HttpPost("{id}/qrcodes")]
-        [ApiExplorerSettings(IgnoreApi = true)] // Endpoint interno
-        public async Task<IActionResult> AddQRCodes(int id, [FromBody] AddQRCodesRequest request) {
-            try {
-                if (id <= 0 || request.QRCodes == null || !request.QRCodes.Any()) {
-                    return BadRequest(new { Message = "Parâmetros inválidos" });
-                }
-
-                await _videoService.AddQRCodesToVideoAsync(id, request.QRCodes);
-
-                // Notificar conclusão (FASE 04)
-                await _videoService.NotifyVideoCompletedAsync(id, request.QRCodes);
-
-                return Ok(new {
-                    Message = "QR Codes adicionados com sucesso",
-                    VideoId = id,
-                    TotalQRCodes = request.QRCodes.Count
-                });
-            } catch (Exception ex) {
-                _logger.LogError(ex, "Erro ao adicionar QR Codes: VideoId={VideoId}", id);
-                return StatusCode(500, new { Message = "Erro ao adicionar QR Codes", Details = ex.Message });
-            }
-        }
-
         #region Métodos Privados
 
-        private static int GetProgressPercentage(string status) {
-            return status switch {
-                "Na Fila" => 10,
-                "Processando" => 50,
-                "Concluído" => 100,
-                "Erro" => 0,
-                _ => 0
-            };
+        private static string FormatTimestamp(int seconds) {
+            if (seconds < 60)
+                return $"{seconds}s";
+
+            var minutes = seconds / 60;
+            var remainingSeconds = seconds % 60;
+
+            return remainingSeconds > 0
+                ? $"{minutes}m{remainingSeconds}s"
+                : $"{minutes}m";
         }
 
         #endregion
     }
-
-    #region DTOs para Requests
-
-    /// <summary>
-    /// Request para teste de fila (FASE 01)
-    /// </summary>
-    public class TestQueueRequest {
-        public string Message { get; set; } = string.Empty;
-    }
-
-    /// <summary>
-    /// Request para atualização de status (FASE 03)
-    /// </summary>
-    public class UpdateStatusRequest {
-        public string Status { get; set; } = string.Empty;
-        public string? ErrorMessage { get; set; }
-        public int Duration { get; set; }
-    }
-
-    /// <summary>
-    /// Request para adição de QR Codes (FASE 03)
-    /// </summary>
-    public class AddQRCodesRequest {
-        public List<QRCodeResult> QRCodes { get; set; } = new();
-    }
-
-    #endregion
 }

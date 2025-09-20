@@ -1,34 +1,49 @@
-﻿using Microsoft.OpenApi.Models;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using System.Collections.Generic;
 using System.Linq;
-using Microsoft.AspNetCore.Http;
 
 namespace VideoNest.Filters {
+    /// <summary>
+    /// Filtro do Swagger para documentar endpoints de upload de arquivo
+    /// </summary>
     public class FileUploadOperationFilter : IOperationFilter {
-        public void Apply(OpenApiOperation operation, OperationFilterContext context) {
+        public void Apply(Microsoft.OpenApi.Models.OpenApiOperation operation,
+                         Swashbuckle.AspNetCore.SwaggerGen.OperationFilterContext context) {
+            // Detecta se é endpoint de upload (tem IFormFile)
             var isFileUpload = context.MethodInfo.GetParameters()
                 .Any(p => p.ParameterType == typeof(IFormFile));
 
-            if (isFileUpload) {
-                operation.RequestBody = new OpenApiRequestBody {
-                    Content = new Dictionary<string, OpenApiMediaType> {
-                        ["multipart/form-data"] = new OpenApiMediaType {
-                            Schema = new OpenApiSchema {
-                                Type = "object",
-                                Properties = new Dictionary<string, OpenApiSchema> {
-                                    ["file"] = new OpenApiSchema {
-                                        Type = "string",
-                                        Format = "binary"
-                                    },
-                                    ["Title"] = new OpenApiSchema { Type = "string" },
-                                    ["Description"] = new OpenApiSchema { Type = "string" }
+            // Se não tem arquivo, não faz nada
+            if (!isFileUpload)
+                return;
+
+            // Configura o RequestBody como multipart/form-data
+            operation.RequestBody = new Microsoft.OpenApi.Models.OpenApiRequestBody {
+                Content = new Dictionary<string, Microsoft.OpenApi.Models.OpenApiMediaType> {
+                    ["multipart/form-data"] = new Microsoft.OpenApi.Models.OpenApiMediaType {
+                        Schema = new Microsoft.OpenApi.Models.OpenApiSchema {
+                            Type = "object",
+                            Properties = new Dictionary<string, Microsoft.OpenApi.Models.OpenApiSchema> {
+                                // Campo de arquivo obrigatório
+                                ["file"] = new Microsoft.OpenApi.Models.OpenApiSchema {
+                                    Type = "string",
+                                    Format = "binary"
                                 },
-                                Required = new HashSet<string> { "file" }
-                            }
+                                // Campos de texto opcionais
+                                ["Title"] = new Microsoft.OpenApi.Models.OpenApiSchema {
+                                    Type = "string"
+                                },
+                                ["Description"] = new Microsoft.OpenApi.Models.OpenApiSchema {
+                                    Type = "string"
+                                }
+                            },
+                            Required = new HashSet<string> { "file" }
                         }
                     }
-                };
-            }
+                }
+            };
         }
     }
 }

@@ -7,11 +7,11 @@ using VideoNest.Models;
 namespace VideoNest.Services {
     /// <summary>
     /// Interface para o serviço de gerenciamento de vídeos
-    /// FASE 01-05: Upload, consulta, atualizações e notificações
+    /// Upload, consulta, atualizações e notificações
     /// </summary>
     public interface IVideoService {
         /// <summary>
-        /// FASE 02: Upload de vídeo com validação, persistência e publicação na fila
+        /// Upload de vídeo com validação, persistência e publicação na fila
         /// </summary>
         /// <param name="file">Arquivo de vídeo (.mp4/.avi)</param>
         /// <param name="request">Metadados do vídeo</param>
@@ -19,20 +19,20 @@ namespace VideoNest.Services {
         Task<int> UploadVideoAsync(IFormFile file, VideoUploadRequest request);
 
         /// <summary>
-        /// FASE 01: Endpoint de teste para fila RabbitMQ
+        /// Endpoint de teste para fila RabbitMQ
         /// </summary>
         /// <param name="message">Mensagem de teste</param>
         void PublishTestMessage(string message);
 
         /// <summary>
-        /// FASE 02-03: Consulta de vídeo por ID com cache Redis
+        /// Consulta de vídeo por ID com cache Redis
         /// </summary>
         /// <param name="id">ID do vídeo</param>
         /// <returns>Informações do vídeo ou null se não encontrado</returns>
         Task<VideoResult?> BuscaVideoPorIDService(int id);
 
         /// <summary>
-        /// FASE 03: Atualizar status do vídeo (chamado pelo ScanForge)
+        /// Atualizar status do vídeo (chamado pelo ScanForge)
         /// </summary>
         /// <param name="videoId">ID do vídeo</param>
         /// <param name="status">Novo status (Na Fila, Processando, Concluído, Erro)</param>
@@ -42,7 +42,7 @@ namespace VideoNest.Services {
         Task UpdateVideoStatusAsync(int videoId, string status, string? errorMessage = null, int duration = 0);
 
         /// <summary>
-        /// FASE 03: Adicionar resultados de QR Codes (chamado pelo ScanForge)
+        /// Adicionar resultados de QR Codes (chamado pelo ScanForge)
         /// </summary>
         /// <param name="videoId">ID do vídeo</param>
         /// <param name="qrCodes">Lista de QR Codes detectados</param>
@@ -50,7 +50,7 @@ namespace VideoNest.Services {
         Task AddQRCodesToVideoAsync(int videoId, List<QRCodeResult> qrCodes);
 
         /// <summary>
-        /// FASE 04: Notificação SignalR de conclusão de processamento
+        /// Notificação SignalR de conclusão de processamento
         /// </summary>
         /// <param name="videoId">ID do vídeo</param>
         /// <param name="qrCodes">QR Codes detectados (opcional)</param>
@@ -58,9 +58,10 @@ namespace VideoNest.Services {
         Task NotifyVideoCompletedAsync(int videoId, List<QRCodeResult>? qrCodes = null);
     }
 
+
+
     /// <summary>
     /// Interface para o publisher RabbitMQ (ÚNICA declaração)
-    /// FASE 01: Mensageria assíncrona
     /// </summary>
     public interface IRabbitMQPublisher {
         /// <summary>
