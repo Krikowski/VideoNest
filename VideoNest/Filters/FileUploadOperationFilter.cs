@@ -20,22 +20,22 @@ namespace VideoNest.Filters {
                 return;
 
             // Configura o RequestBody como multipart/form-data
-            operation.RequestBody = new Microsoft.OpenApi.Models.OpenApiRequestBody {
-                Content = new Dictionary<string, Microsoft.OpenApi.Models.OpenApiMediaType> {
-                    ["multipart/form-data"] = new Microsoft.OpenApi.Models.OpenApiMediaType {
-                        Schema = new Microsoft.OpenApi.Models.OpenApiSchema {
+            operation.RequestBody = new OpenApiRequestBody {
+                Content = new Dictionary<string, OpenApiMediaType> {
+                    ["multipart/form-data"] = new OpenApiMediaType {
+                        Schema = new OpenApiSchema {
                             Type = "object",
-                            Properties = new Dictionary<string, Microsoft.OpenApi.Models.OpenApiSchema> {
+                            Properties = new Dictionary<string, OpenApiSchema> {
                                 // Campo de arquivo obrigatório
-                                ["file"] = new Microsoft.OpenApi.Models.OpenApiSchema {
+                                ["file"] = new OpenApiSchema {
                                     Type = "string",
                                     Format = "binary"
                                 },
                                 // Campos de texto opcionais
-                                ["Title"] = new Microsoft.OpenApi.Models.OpenApiSchema {
+                                ["Title"] = new OpenApiSchema {
                                     Type = "string"
                                 },
-                                ["Description"] = new Microsoft.OpenApi.Models.OpenApiSchema {
+                                ["Description"] = new OpenApiSchema {
                                     Type = "string"
                                 }
                             },

@@ -58,16 +58,26 @@ namespace VideoNest.Services {
         Task NotifyVideoCompletedAsync(int videoId, List<QRCodeResult>? qrCodes = null);
     }
 
-
-
     /// <summary>
-    /// Interface para o publisher RabbitMQ (ÚNICA declaração)
+    /// Interface para o publisher RabbitMQ - CORRIGIDA
+    /// Agora suporta os métodos necessários para infraestrutura e publicação
     /// </summary>
     public interface IRabbitMQPublisher {
         /// <summary>
-        /// Publica mensagem na fila RabbitMQ
+        /// Publica mensagem de vídeo para RabbitMQ (método principal)
         /// </summary>
-        /// <param name="message">Mensagem JSON serializada</param>
+        /// <param name="message">Objeto da mensagem (serializado para JSON)</param>
+        Task PublishVideoMessageAsync(object message);
+
+        /// <summary>
+        /// Método de teste legado (mantido para compatibilidade)
+        /// </summary>
+        /// <param name="message">Mensagem de teste simples</param>
         void PublishMessage(string message);
+
+        /// <summary>
+        /// Declara infraestrutura RabbitMQ (exchanges, queues, bindings)
+        /// </summary>
+        Task DeclareInfrastructureAsync();
     }
 }

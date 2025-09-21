@@ -1,180 +1,122 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
-using System.ComponentModel.DataAnnotations;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
-namespace VideoNest.Models {
+namespace VideoNest.Models;
+
+/// <summary>
+/// Resultado do processamento de vídeo no MongoDB (compatível com ScanForge)
+/// Implementa RF5-7: armazenamento de QRs, status e timestamps
+/// </summary>
+[BsonIgnoreExtraElements] // Correção: Ignora campos extras adicionados pelo ScanForge
+public class VideoResult {
     /// <summary>
-    /// Representa um vídeo e seus resultados de processamento
+    /// ID único do vídeo (chave primária, gerado por Counter Pattern)
     /// </summary>
-    public class VideoResult {
-        /// <summary>
-        /// ID único do vídeo (Primary Key)
-        /// </summary>
-        /// <remarks>
-        /// Gerado sequencialmente via VideoCounter.
-        /// [BsonId] mapeia para _id do MongoDB.
-        /// </remarks>
-        [BsonId]
-        [BsonRepresentation(BsonType.Int32)]
-        [Required]
-        [Range(1, int.MaxValue)]
-        public int VideoId { get; set; }
+    [BsonId]
+    [BsonRepresentation(BsonType.Int32)]
+    public int VideoId { get; set; }
 
-        /// <summary>
-        /// Título do vídeo
-        /// </summary>
-        /// <remarks>
-        /// Do VideoUploadRequest.Title, default: "Vídeo sem título".
-        /// </remarks>
-        [Required]
-        [StringLength(100)]
-        public string Title { get; set; } = "Vídeo sem título";
+    /// <summary>
+    /// Título do vídeo (obrigatório para RF1)
+    /// </summary>
+    public string Title { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Descrição do vídeo (opcional)
-        /// </summary>
-        [StringLength(500)]
-        public string? Description { get; set; }
+    /// <summary>
+    /// Descrição opcional
+    /// </summary>
+    public string? Description { get; set; }
 
-        /// <summary>
-        /// Caminho do arquivo no disco
-        /// </summary>
-        /// <remarks>
-        /// Ex: "/uploads/video-123.mp4" - gerado no upload.
-        /// </remarks>
-        [Required]
-        public string? FilePath { get; set; }
+    /// <summary>
+    /// Caminho do arquivo de vídeo (salvo em /app/uploads)
+    /// </summary>
+    public string? FilePath { get; set; }
 
-        /// <summary>
-        /// Status atual do processamento
-        /// </summary>
-        /// <remarks>
-        /// Estados: "Na Fila", "Processando", "Concluído", "Erro".
-        /// Default: "Na Fila" após upload (RF6).
-        /// </remarks>
-        [Required]
-        public string Status { get; set; } = "Na Fila";
+    /// <summary>
+    /// Status do processamento (RF6)
+    /// </summary>
+    public string Status { get; set; } = "Na Fila";
 
-        /// <summary>
-        /// Data de criação (UTC)
-        /// </summary>
-        public DateTime? CreatedAt { get; set; }
+    /// <summary>
+    /// Data de criação (UTC)
+    /// </summary>
+    public DateTime? CreatedAt { get; set; } = DateTime.UtcNow;
 
-        /// <summary>
-        /// Duração do vídeo em segundos
-        /// </summary>
-        /// <remarks>
-        /// Extraído via FFmpeg (ffprobe).
-        /// </remarks>
-        [Range(0, int.MaxValue)]
-        public int Duration { get; set; }
+    /// <summary>
+    /// Duração do vídeo em segundos (calculada pelo ScanForge)
+    /// </summary>
+    public int Duration { get; set; }
 
-        /// <summary>
-        /// Mensagem de erro (se Status = "Erro")
-        /// </summary>
-        [StringLength(1000)]
-        public string? ErrorMessage { get; set; }
+    /// <summary>
+    /// Mensagem de erro (se aplicável)
+    /// </summary>
+    public string? ErrorMessage { get; set; }
 
-        /// <summary>
-        /// QR Codes detectados (RF7)
-        /// </summary>
-        /// <remarks>
-        /// Array preenchido pelo ScanForge após ZXing.Net.
-        /// Cada item: { Content, Timestamp }.
-        /// </remarks>
-        public List<QRCodeResult> QRCodes { get; set; } = new();
+    /// <summary>
+    /// Lista de QR Codes detectados (RF5, RF7)
+    /// </summary>
+    public List<QRCodeResult> QRCodes { get; set; } = new List<QRCodeResult>();
 
-        /// <summary>
-        /// Valida o documento antes de persistir
-        /// </summary>
-        /// <returns>True se válido</returns>
-        public bool IsValid(out string? error) {
-            if (VideoId <= 0) { error = "VideoId inválido"; return false; }
-            if (string.IsNullOrEmpty(Title)) { error = "Título obrigatório"; return false; }
-            if (string.IsNullOrEmpty(FilePath)) { error = "FilePath obrigatório"; return false; }
+    /// <summary>
+    /// Última atualização do registro (compatibilidade com ScanForge)
+    /// Correção: Propriedade adicionada para evitar erro de deserialização
+    /// </summary>
+    [BsonElement("LastUpdated")]
+    public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
 
-            var validStatuses = new[] { "Na Fila", "Processando", "Concluído", "Erro" };
-            if (!validStatuses.Contains(Status)) {
-                error = $"Status inválido: {Status}";
-                return false;
-            }
-
-            if (Status == "Concluído" && QRCodes.Count > 1000) {
-                error = "Máximo 1000 QR Codes";
-                return false;
-            }
-
-            error = null;
-            return true;
+    /// <summary>
+    /// Validação de entidade (usada em SaveVideoAsync)
+    /// Verifica campos obrigatórios para RF1-2
+    /// </summary>
+    /// <param name="validationError">Mensagem de erro se inválido</param>
+    /// <returns>True se válido, false se inválido</returns>
+    public bool IsValid(out string validationError) {
+        if (VideoId <= 0) {
+            validationError = "VideoId deve ser maior que zero";
+            return false;
         }
+
+        if (string.IsNullOrWhiteSpace(Title)) {
+            validationError = "Título é obrigatório";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(FilePath)) {
+            validationError = "Caminho do arquivo é obrigatório";
+            return false;
+        }
+
+        if (!VideoNest.Constants.VideoConstants.ValidStatuses.Contains(Status)) {
+            validationError = $"Status inválido: {Status}. Status válidos: [{string.Join(", ", VideoNest.Constants.VideoConstants.ValidStatuses)}]";
+            return false;
+        }
+
+        validationError = string.Empty;
+        return true;
     }
+}
+
+/// <summary>
+/// Resultado individual de QR Code (RF5, RF7)
+/// </summary>
+public class QRCodeResult {
+    /// <summary>
+    /// Conteúdo do QR Code (texto decodificado)
+    /// </summary>
+    public string? Content { get; set; }
 
     /// <summary>
-    /// QR Code detectado em um frame do vídeo
+    /// Timestamp em segundos (quando aparece no vídeo)
     /// </summary>
-    public class QRCodeResult {
-        /// <summary>
-        /// Conteúdo decodificado do QR Code
-        /// </summary>
-        /// <remarks>
-        /// Ex: URL, email, texto. Máximo 500 caracteres.
-        /// </remarks>
-        [StringLength(500)]
-        public string? Content { get; set; }
-
-        /// <summary>
-        /// Timestamp do frame (segundos)
-        /// </summary>
-        /// <remarks>
-        /// Calculado: frame_index / fps. Ex: frame 30 @ 2fps = 15s.
-        /// </remarks>
-        [Range(0, int.MaxValue)]
-        public int Timestamp { get; set; }
-
-        /// <summary>
-        /// Valida o QR Code
-        /// </summary>
-        public bool IsValid() => !string.IsNullOrWhiteSpace(Content) && Timestamp >= 0;
-    }
+    public int Timestamp { get; set; }
 
     /// <summary>
-    /// Contador sequencial para IDs de vídeo
+    /// Validação de QR Code (usada em AddQRCodesAsync)
     /// </summary>
-    /// <remarks>
-    /// FASE 01: Gera VideoId incremental (1, 2, 3...) via MongoDB $inc.
-    /// Documento fixo: { _id: "video_counter", sequence: 123 }
-    /// </remarks>
-    public class VideoCounter {
-        /// <summary>
-        /// ID fixo do contador
-        /// </summary>
-        [BsonId]
-        public string Id { get; set; } = "video_counter";
-
-        /// <summary>
-        /// Valor sequencial atual
-        /// </summary>
-        public int Sequence { get; set; }
-    }
-
-    /// <summary>
-    /// Constantes de domínio para vídeos
-    /// </summary>
-    public static class VideoConstants {
-        /// <summary>
-        /// Status válidos do processamento
-        /// </summary>
-        public static readonly string[] ValidStatuses =
-        { "Na Fila", "Processando", "Concluído", "Erro" };
-
-        /// <summary>
-        /// Extensões suportadas
-        /// </summary>
-        public static readonly string[] SupportedExtensions = { ".mp4", ".avi" };
-
-        /// <summary>
-        /// Tamanho máximo (100MB)
-        /// </summary>
-        public const long MaxFileSizeBytes = 100 * 1024 * 1024;
+    /// <returns>True se válido (Content não nulo e Timestamp >= 0)</returns>
+    public bool IsValid() {
+        return !string.IsNullOrWhiteSpace(Content) && Timestamp >= 0;
     }
 }

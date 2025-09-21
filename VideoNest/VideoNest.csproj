@@ -11,17 +11,6 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<Compile Remove="Repositories\**" />
-		<Compile Remove="wwwroot\**" />
-		<Content Remove="Repositories\**" />
-		<Content Remove="wwwroot\**" />
-		<EmbeddedResource Remove="Repositories\**" />
-		<EmbeddedResource Remove="wwwroot\**" />
-		<None Remove="Repositories\**" />
-		<None Remove="wwwroot\**" />
-	</ItemGroup>
-
-	<ItemGroup>
 		<!-- Web API e Swagger -->
 		<PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
 
@@ -51,7 +40,6 @@
 	<ItemGroup>
 		<Folder Include="Controllers\" />
 		<Folder Include="DTO\" />
-		<Folder Include="Models\" />
 		<Folder Include="Hubs\" />
 		<Folder Include="Filters\" />
 	</ItemGroup>

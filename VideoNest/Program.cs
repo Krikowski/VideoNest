@@ -5,31 +5,16 @@ using StackExchange.Redis;
 using VideoNest.Filters;
 using VideoNest.Hubs;
 using VideoNest.Repositories;
-using VideoNest.Services; 
+using VideoNest.Services;
 using Prometheus;
 using Serilog;
 using Microsoft.Extensions.Caching.Distributed;
+using System.Threading.Tasks;
 
 namespace VideoNest {
-    /// <summary>
-    /// Program principal da VideoNest API.
-    /// Configura DI, middleware, e integrações: MongoDB, Redis, RabbitMQ, SignalR, Prometheus.
-    /// </summary>
-    /// <remarks>
-    /// Stack básico (.NET 8, Controllers, Docker-ready).
-    /// Upload configuration (100MB limit).
-    /// MongoDB NoSQL + Redis Cache.
-    /// SignalR real-time + Serilog logs.
-    /// Prometheus metrics + Swagger docs.
-    /// DLQ RabbitMQ, Clean Code DI patterns.
-    /// </remarks>
     public class Program {
-        /// <summary>
-        /// Entry point da aplicação (.NET 8 Minimal API).
-        /// Configura Serilog, DI container, middleware pipeline.
-        /// </summary>
-        /// <param name="args">Argumentos de linha de comando.</param>
         public static void Main(string[] args) {
+            // Configuração Serilog
             Log.Logger = new LoggerConfiguration()
                 .ReadFrom.Configuration(new ConfigurationBuilder()
                     .SetBasePath(Directory.GetCurrentDirectory())
@@ -39,9 +24,9 @@ namespace VideoNest {
                 .CreateLogger();
 
             var builder = WebApplication.CreateBuilder(args);
-
             builder.Host.UseSerilog();
 
+            // Controllers e Swagger
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(c => {
@@ -56,76 +41,110 @@ namespace VideoNest {
                 });
             });
 
+            // SignalR
             builder.Services.AddSignalR();
 
+            // MongoDB
             builder.Services.AddSingleton<IMongoClient>(sp =>
                 new MongoClient(
                     builder.Configuration.GetConnectionString("MongoDB") ??
                     builder.Configuration["MongoDB:ConnectionString"] ??
-                    "mongodb://admin:admin@localhost:27017"));
+                    "mongodb://admin:admin@mongodb_hackathon:27017"));
 
             builder.Services.AddSingleton<IMongoDatabase>(sp =>
                 sp.GetRequiredService<IMongoClient>().GetDatabase(
                     builder.Configuration["MongoDB:DatabaseName"] ?? "Hackathon_FIAP"));
 
+            // Redis
             builder.Services.AddStackExchangeRedisCache(options => {
-                options.Configuration = builder.Configuration["Redis:ConnectionString"] ?? "redis:6379";
-                options.InstanceName = "VideoNest:";  // Prefixo para evitar colisão de chaves
+                options.Configuration = builder.Configuration["Redis:ConnectionString"] ?? "redis_hackathon:6379";
+                options.InstanceName = "VideoNest:";
             });
 
+            // Repositórios e Serviços
             builder.Services.AddScoped<IVideoRepository, VideoRepository>();
             builder.Services.AddScoped<IVideoService, VideoService>();
 
-            builder.Services.AddScoped<IRabbitMQPublisher, RabbitMQPublisher>();
+            // ✅ REGISTRO CORRIGIDO: Interface atualizada com métodos corretos
+            builder.Services.AddSingleton<IRabbitMQPublisher, RabbitMQPublisher>();
 
+            // Kestrel (100MB para vídeos)
             builder.WebHost.ConfigureKestrel(options => {
-                options.Limits.MaxRequestBodySize = 100_000_000;  // 100MB para vídeos
-                options.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(2);  // Uploads longos
+                options.Limits.MaxRequestBodySize = 100_000_000;
+                options.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(2);
             });
 
             builder.Services.Configure<FormOptions>(options => {
-                options.MultipartBodyLengthLimit = 100_000_000;  // 100MB multipart/form-data
+                options.MultipartBodyLengthLimit = 100_000_000;
                 options.ValueLengthLimit = int.MaxValue;
                 options.MultipartHeadersLengthLimit = int.MaxValue;
             });
 
             var app = builder.Build();
 
+            // Mapear SignalR Hub
             app.MapHub<VideoHub>("/videoHub");
 
-            if (app.Environment.IsDevelopment() ||
-                app.Environment.EnvironmentName == "Demo") {
-
+            // Swagger (Development/Demo)
+            if (app.Environment.IsDevelopment() || app.Environment.EnvironmentName == "Demo") {
                 app.UseSwagger();
                 app.UseSwaggerUI(c => {
                     c.SwaggerEndpoint("/swagger/v1/swagger.json", "VideoNest API v1");
-                    c.RoutePrefix = string.Empty; // Swagger na raiz (/)
-
-                    // ✅ CORREÇÃO: Chamar métodos, não atribuir propriedades
-                    c.DisplayRequestDuration();  // Método, não propriedade
-                    c.EnableDeepLinking();       // Método, não propriedade
+                    c.RoutePrefix = string.Empty;
                 });
             }
 
-            // ✅ Error Handling: SEMPRE em Production
+            // Error handling
             if (!app.Environment.IsDevelopment()) {
                 app.UseExceptionHandler("/Error");
             } else {
-                // Opcional: Developer exception page em Development
                 app.UseDeveloperExceptionPage();
             }
 
             app.UseHttpsRedirection();
+            app.UseStaticFiles();
+            app.UseRouting();
             app.UseAuthorization();
 
-            app.UseMetricServer();        
-            app.UseHttpMetrics();     
+            // Prometheus
+            app.UseMetricServer();
+            app.UseHttpMetrics();
 
             app.MapControllers();
 
+            // ✅ INICIALIZAÇÃO CORRIGIDA: Interface agora tem DeclareInfrastructureAsync
+            var publisher = app.Services.GetRequiredService<IRabbitMQPublisher>();
             var logger = app.Services.GetRequiredService<ILogger<Program>>();
-            logger.LogInformation("🚀 VideoNest API v1.0 iniciada em {Environment} - {Timestamp}",
-                app.Environment.EnvironmentName, DateTime.UtcNow);
+
+            // Tenta inicializar RabbitMQ com retry
+            bool rabbitMQRdy = false;
+            int maxRetries = 5;
+            int retryDelay = 5; // segundos
+
+            for (int attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    logger.LogInformation("🔄 Tentativa {Attempt}/{MaxRetries} - Inicializando RabbitMQ...", attempt, maxRetries);
+                    publisher.DeclareInfrastructureAsync().GetAwaiter().GetResult();
+                    rabbitMQRdy = true;
+                    logger.LogInformation("✅ Infraestrutura RabbitMQ inicializada pelo VideoNest");
+                    break;
+                } catch (Exception ex) {
+                    logger.LogWarning(ex, "⚠️ Tentativa {Attempt}/{MaxRetries} falhou - Aguardando {Delay}s...", attempt, maxRetries, retryDelay);
+                    if (attempt < maxRetries) {
+                        Task.Delay(retryDelay * 1000).GetAwaiter().GetResult();
+                    } else {
+                        logger.LogWarning(ex, "⚠️ RabbitMQ falhou após {MaxRetries} tentativas - continuando sem infraestrutura...", maxRetries);
+                    }
+                }
+            }
+
+            if (!rabbitMQRdy) {
+                logger.LogWarning("⚠️ VideoNest rodando SEM RabbitMQ - uploads não serão processados!");
+            }
+
+            var startupLogger = app.Services.GetRequiredService<ILogger<Program>>();
+            startupLogger.LogInformation("🚀 VideoNest API v1.0 iniciada em {Environment} - {Timestamp} (RabbitMQ: {RabbitMQRdy})",
+                app.Environment.EnvironmentName, DateTime.UtcNow, rabbitMQRdy ? "OK" : "FAILED");
 
             app.Run();
         }
