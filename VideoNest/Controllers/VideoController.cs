@@ -123,17 +123,21 @@ namespace VideoNest.Controllers {
                     return NotFound(new { Message = "Vídeo não encontrado" });
                 }
 
+                // ✅ CORREÇÃO: Response mais completo com contagem de QRs
                 var response = new {
                     VideoId = video.VideoId,
                     Title = video.Title,
                     Status = video.Status,
                     Duration = video.Duration,
                     CreatedAt = video.CreatedAt,
+                    LastUpdated = video.LastUpdated,
+                    TotalQRCodes = video.QRCodes?.Count ?? 0, // ✅ Nova informação
                     ErrorMessage = video.Status == "Erro" ? video.ErrorMessage : null,
-                    LastUpdated = DateTime.UtcNow
+                    ProcessingProgress = GetProgressPercentage(video.Status, video.Duration) // Bônus
                 };
 
-                _logger.LogDebug("Status retornado: VideoId={VideoId}, Status={Status}", id, video.Status);
+                _logger.LogDebug("Status retornado: VideoId={VideoId}, Status={Status}, QRs={QrCount}",
+                    id, video.Status, response.TotalQRCodes);
                 return Ok(response);
             } catch (InvalidOperationException ex) {
                 _logger.LogError(ex, "Erro ao consultar status: VideoId={VideoId}", id);
@@ -172,53 +176,40 @@ namespace VideoNest.Controllers {
                     return NotFound(new { Message = "Vídeo não encontrado" });
                 }
 
-                if (video.Status == "Erro") {
-                    return BadRequest(new {
-                        Message = "Processamento falhou",
-                        Error = video.ErrorMessage,
-                        VideoId = id
-                    });
-                }
-
-                if (video.Status != "Concluído") {
+                // ✅ CORREÇÃO: Validação mais flexível - permite "Concluído" ou "Erro"
+                if (video.Status != "Concluído" && video.Status != "Erro") {
+                    _logger.LogDebug("Processamento não finalizado: VideoId={VideoId}, Status={Status}", id, video.Status);
                     return BadRequest(new {
                         Message = "Processamento não concluído",
                         CurrentStatus = video.Status,
                         VideoId = id,
-                        ExpectedStatus = "Concluído"
+                        ExpectedStatus = new[] { "Concluído", "Erro" }
                     });
                 }
 
-                var qrResults = video.QRCodes.Select(qr => new {
-                    Content = qr.Content ?? string.Empty,
-                    Timestamp = qr.Timestamp,
-                    TimestampFormatted = FormatTimestamp(qr.Timestamp)
-                }).ToList();
-
-                var processingTime = video.CreatedAt.HasValue
-                    ? DateTime.UtcNow - video.CreatedAt.Value
-                    : TimeSpan.Zero;
+                // ✅ CORREÇÃO: Tipo explícito para evitar erro CS0019
+                var qrCodeResults = new List<object>();
+                if (video.QRCodes != null && video.QRCodes.Any()) {
+                    qrCodeResults = video.QRCodes.Select(qr => new {
+                        Content = qr.Content,
+                        Timestamp = qr.Timestamp,
+                        FrameNumber = qr.Timestamp // Para compatibilidade com frontend
+                    }).Cast<object>().ToList();
+                }
 
                 var response = new {
                     VideoId = video.VideoId,
                     Title = video.Title,
                     Status = video.Status,
-                    Duration = video.Duration,
-                    TotalQRCodes = qrResults.Count(),
-                    QRCodes = qrResults,
-                    ProcessingTime = processingTime.ToString(@"hh\:mm\:ss"),
-                    AnalysisSummary = new {
-                        Density = qrResults.Any() ?
-                            Math.Round((double)qrResults.Count() * 60 / video.Duration, 1) : 0,
-                        Coverage = qrResults.Any() ?
-                            $"{Math.Round((double)(qrResults.Max(r => r.Timestamp) - qrResults.Min(r => r.Timestamp)) / video.Duration * 100, 1)}% do vídeo" : "Nenhum QR Code"
-                    }
+                    TotalQRCodes = video.QRCodes?.Count ?? 0,
+                    QRCodes = qrCodeResults, // ✅ Tipo consistente: List<object>
+                    ProcessingTime = DateTime.UtcNow.Subtract(video.CreatedAt ?? DateTime.UtcNow).TotalSeconds,
+                    LastUpdated = video.LastUpdated
                 };
 
-                _logger.LogInformation("Resultados retornados: VideoId={VideoId}, QRCodes={Count}",
-                    id, qrResults.Count());
-
+                _logger.LogInformation("Resultados retornados: VideoId={VideoId}, QRs={Count}", id, response.TotalQRCodes);
                 return Ok(response);
+
             } catch (InvalidOperationException ex) {
                 _logger.LogError(ex, "Erro ao consultar resultados: VideoId={VideoId}", id);
                 return StatusCode(500, new { Message = "Erro ao consultar resultados", Details = ex.Message });
@@ -229,6 +220,17 @@ namespace VideoNest.Controllers {
         }
 
         #region Métodos Privados
+
+        // ✅ MÉTODO AUXILIAR (adicione no controller)
+        private int GetProgressPercentage(string status, int duration) {
+            return status switch {
+                "Na Fila" => 10,
+                "Processando" => 50,
+                "Concluído" => 100,
+                "Erro" => 0,
+                _ => 0
+            };
+        }
 
         private static string FormatTimestamp(int seconds) {
             if (seconds < 60)

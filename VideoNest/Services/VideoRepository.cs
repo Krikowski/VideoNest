@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using VideoNest.Constants;
 using VideoNest.Models;
@@ -261,13 +262,16 @@ public class VideoRepository : IVideoRepository {
     /// </summary>
     private async Task InitializeIndexesAsync() {
         try {
-            // Correção: Removido índice em _id (já existe por default, unique=true é inválido)
-            // Índice único em VideoId para performance de consultas (RF6)
-            var videoIdIndex = Builders<VideoResult>.IndexKeys.Ascending(v => v.VideoId);
-            await _videos.Indexes.CreateOneAsync(new CreateIndexModel<VideoResult>(
-                videoIdIndex,
-                new CreateIndexOptions { Unique = true, Name = "VideoId_Unique" }
-            ));
+            // Testa conectividade
+            var pingResult = await _videos.Database.RunCommandAsync((Command<BsonDocument>)"{ping:1}");
+            _logger.LogDebug("✅ Conectividade MongoDB confirmada");
+
+            // ✅ REMOVIDO: Não criar índice no _id (já existe por default)
+            // var videoIdIndex = Builders<VideoResult>.IndexKeys.Ascending(v => v.VideoId);
+            // await _videos.Indexes.CreateOneAsync(new CreateIndexModel<VideoResult>(
+            //     videoIdIndex,
+            //     new CreateIndexOptions { Unique = true, Name = "VideoId_Unique" }
+            // ));
 
             // Índice em Status para relatórios (bônus: métricas de processamento)
             var statusIndex = Builders<VideoResult>.IndexKeys.Ascending(v => v.Status);
@@ -276,14 +280,24 @@ public class VideoRepository : IVideoRepository {
                 new CreateIndexOptions { Name = "Status_Index" }
             ));
 
-            _logger.LogInformation("✅ Índices otimizados criados: VideoId_Unique, Status_Index");
+            // Índice composto Status + CreatedAt (igual ao ScanForge)
+            var statusCreatedIndex = Builders<VideoResult>.IndexKeys
+                .Ascending(v => v.Status)
+                .Descending(v => v.CreatedAt);
+            await _videos.Indexes.CreateOneAsync(new CreateIndexModel<VideoResult>(
+                statusCreatedIndex,
+                new CreateIndexOptions { Name = "Status_CreatedAt_Index" }
+            ));
+
+            _logger.LogInformation("✅ Índices otimizados criados: Status_Index, Status_CreatedAt_Index");
         } catch (MongoCommandException ex) when (ex.Code == 85 || ex.Code == 86 || ex.Code == 11000) {
             // Ignora se índice já existe (comum em restarts)
             _logger.LogDebug("Índices já existem - ignorando");
         } catch (Exception ex) {
-            // Correção: Logging correto (sem EventId)
             _logger.LogWarning(ex, "⚠️ Falha ao criar índices MongoDB (continuando sem índices otimizados)");
         }
     }
+
+
     #endregion
 }

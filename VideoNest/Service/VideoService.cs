@@ -196,32 +196,34 @@ namespace VideoNest.Services {
         /// <param name="id">ID do vídeo</param>
         /// <returns>VideoResult ou null (404)</returns>
         public async Task<VideoResult?> BuscaVideoPorIDService(int id) {
-            if (id <= 0) {
-                _logger.LogWarning("ID inválido: {VideoId}", id);
-                return null;
+            var cacheKey = $"Video:{id}"; // ✅ Chave consistente com InstanceName="VideoNest:"
+
+            // ✅ Tenta cache primeiro
+            var cachedVideo = await _cache.GetAsync(cacheKey);
+            if (cachedVideo != null) {
+                // Deserializar (assumindo JSON simples; use System.Text.Json)
+                var videoJson = System.Text.Encoding.UTF8.GetString(cachedVideo);
+                return System.Text.Json.JsonSerializer.Deserialize<VideoResult>(videoJson);
             }
 
-            try {
-                var cached = await GetStatusCacheAsync(id);
-                if (cached != null) {
-                    _logger.LogDebug("Cache hit Redis: VideoId={Id}, Status={Status}", id, cached.Status);
-                    return cached;
-                }
-
-                var video = await _videoRepository.GetVideoByIdAsync(id);
-                if (video == null) {
-                    _logger.LogWarning("Não encontrado MongoDB: VideoId={Id}", id);
-                    return null;
-                }
-
-                await SetStatusCacheAsync(id, video.Status, video.Duration);
-                _logger.LogDebug("Carregado MongoDB: VideoId={Id}, Status={Status}", id, video.Status);
-
-                return video;
-            } catch (Exception ex) {
-                _logger.LogError(ex, "Erro consulta VideoId={Id}", id);
-                throw new InvalidOperationException($"Erro ao consultar vídeo {id}", ex);
+            // Miss cache: Consulta Mongo
+            var video = await _videoRepository.GetVideoByIdAsync(id);
+            if (video != null) {
+                // Cachear por 5min (ajuste via config)
+                var videoJson = System.Text.Json.JsonSerializer.Serialize(video);
+                await _cache.SetStringAsync(cacheKey, videoJson, new DistributedCacheEntryOptions {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+                });
             }
+
+            return video;
+        }
+
+        // ✅ NOVO: Método para invalidar cache explicitamente (chamado via SignalR)
+        public async Task InvalidateVideoCacheAsync(int videoId) {
+            var cacheKey = $"Video:{videoId}";
+            await _cache.RemoveAsync(cacheKey);
+            _logger.LogInformation("✅ Cache invalidado para VideoId={VideoId}", videoId);
         }
 
         #endregion
