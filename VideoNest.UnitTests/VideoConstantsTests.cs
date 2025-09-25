@@ -27,11 +27,13 @@ public class VideoConstantsTests {
         isAllowed.Should().Be(expected); // Usa Should().Be para bool
     }
 
+
     [Fact]
     public void MaxFileSizeBytes_ShouldBe100MB() {
         // Assert (alinhado a RF1: Upload de .mp4/.avi com limite)
         VideoConstants.MaxFileSizeBytes.Should().Be(104_857_600L);
     }
+
 
     [Fact]
     public void CountersCollection_ShouldBeDefined() {
