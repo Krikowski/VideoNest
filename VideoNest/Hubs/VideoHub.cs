@@ -69,6 +69,7 @@ public class VideoHub : Hub {
         await base.OnConnectedAsync();
     }
 
+
     /// <summary>
     /// Cliente desconectado
     /// </summary>
