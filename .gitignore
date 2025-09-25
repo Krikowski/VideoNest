@@ -34,3 +34,8 @@ VideoNest/obj/Debug/net8.0/VideoNest.assets.cache
 /VideoNest/VideoNest.Tests/obj/Debug
 /VideoNest/VideoNest.Tests/.vs/VideoNest.Tests/v17
 /VideoNest/VideoNest.Tests/obj
+/VideoNest.UnitTests/bin
+/VideoNest.UnitTests/obj/Debug
+/VideoNest.UnitTests/.vs/VideoNest.UnitTests/v17
+/VideoNest.UnitTests/obj
+/VideoNest.UnitTests/.vs/VideoNest.UnitTests/DesignTimeBuild
