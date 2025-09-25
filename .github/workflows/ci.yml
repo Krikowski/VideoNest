@@ -22,7 +22,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '8.0.400' # Alinhar com o local
+        dotnet-version: '8.0.400' # Forçar SDK 8.0.400
 
     - name: Restore dependencies
       run: dotnet restore VideoNest/VideoNest.csproj

@@ -13,7 +13,7 @@
 		<UseVSTest>false</UseVSTest>
 		<DisableMSBuildVSTest>true</DisableMSBuildVSTest>
 		<DotNetBuildUseVSTest>false</DotNetBuildUseVSTest>
-		<!-- Reforça desativação -->
+		<VSTestDisable>true</VSTestDisable>
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="coverlet.collector" Version="6.0.4">
