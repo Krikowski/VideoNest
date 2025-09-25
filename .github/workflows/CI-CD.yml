@@ -84,3 +84,13 @@ jobs:
 
     - name: Push to Docker Hub (on main)
       if: github.ref == 'refs/heads/main'
+      run: docker push Krikowski99/videonest-service:latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Deploy to Server (Simulado)
+      run: echo "Deploying to production server... (Integre com Kubernetes/Azure via secrets)"
