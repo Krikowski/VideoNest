@@ -16,7 +16,7 @@ jobs:
   build-test:
     runs-on: ubuntu-latest
     env:
-      DOTNET_MULTILEVEL_LOOKUP: 0  
+      DOTNET_MULTILEVEL_LOOKUP: 0  # Desabilita busca multi-nível para forçar SDK 8.0.400
 
     steps:
     - uses: actions/checkout@v4
@@ -24,7 +24,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '8.0.400'  
+        dotnet-version: '8.0.400'  # Forçar SDK 8.0.400
 
     - name: Verify .NET SDK
       run: dotnet --list-sdks && dotnet --info
