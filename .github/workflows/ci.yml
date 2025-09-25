@@ -15,14 +15,16 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    env:
+      DOTNET_MULTILEVEL_LOOKUP: 0  # Desabilita busca multi-nível para forçar SDK 8.0.400
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Setup .NET Environment
+    - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '8.0.400'
+        dotnet-version: '8.0.400'  # Forçar SDK 8.0.400
 
     - name: Verify .NET SDK
       run: dotnet --list-sdks && dotnet --info
@@ -48,9 +50,7 @@ jobs:
       run: dotnet build VideoNest.UnitTests/VideoNest.UnitTests.csproj --no-restore --configuration Debug --output ./TestBin
 
     - name: Run Unit Tests with Coverage
-      run: dotnet test ./TestBin/VideoNest.UnitTests.dll --verbosity detailed --collect:"XPlat Code Coverage" --results-directory ./TestResults --logger:"trx;LogFileName=test-results.trx" --framework net8.0
-      env:
-        DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      run: dotnet test ./TestBin/VideoNest.UnitTests.dll --verbosity detailed --collect:"XPlat Code Coverage" --results-directory ./TestResults --logger:"trx;LogFileName=test-results.trx"
 
     - name: Upload Test Results
       if: always()
