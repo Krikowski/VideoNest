@@ -30,3 +30,7 @@ VideoNest/obj/Debug/net8.0/VideoNest.assets.cache
 /VideoNest/obj/Debug/*
 /VideoNest/obj/Debug/
 /VideoNest/Uploads
+/VideoNest/VideoNest.Tests/bin
+/VideoNest/VideoNest.Tests/obj/Debug
+/VideoNest/VideoNest.Tests/.vs/VideoNest.Tests/v17
+/VideoNest/VideoNest.Tests/obj

@@ -145,7 +145,7 @@ public class VideoRepository : IVideoRepository {
     /// <param name="status">Novo status ("Na Fila", "Processando", "Concluído", "Erro").</param>
     /// <param name="errorMessage">Mensagem de erro (se Status="Erro").</param>
     /// <param name="duration">Duração total em segundos (default 0).</param>
-    /// <exception cref="ArgumentException">Status inválido ou ID <= 0.</exception>
+    /// <exception cref="ArgumentException">Status inválido ou ID maior igual 0.</exception>
     /// <exception cref="InvalidOperationException">Vídeo não encontrado ou falha MongoDB.</exception>
     public async Task UpdateStatusAsync(int videoId, string status, string? errorMessage = null, int duration = 0) {
         if (videoId <= 0)

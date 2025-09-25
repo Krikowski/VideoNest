@@ -78,7 +78,13 @@ namespace VideoNest.DTO {
         /// </summary>
         /// <returns>Metadados formatados</returns>
         public VideoUploadMetadata GetMetadata() {
+
+            if (File == null) throw new ArgumentNullException(nameof(File));
+
             return new VideoUploadMetadata {
+
+
+
                 Title = Title ?? VideoConstants.DefaultTitle,
                 Description = Description,
                 FileName = Path.GetFileNameWithoutExtension(File?.FileName) ?? "unknown",

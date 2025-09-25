@@ -8,10 +8,17 @@
 		<UserSecretsId>cbe265a2-b652-4c86-a206-388be23ed6d5</UserSecretsId>
 		<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
 		<PublishTrimmed>false</PublishTrimmed>
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<!-- Web API e Swagger -->
+		<PackageReference Include="coverlet.msbuild" Version="6.0.4">
+		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		  <PrivateAssets>all</PrivateAssets>
+		</PackageReference>
+		<PackageReference Include="FluentAssertions" Version="8.6.0" />
+		<PackageReference Include="Moq" Version="4.20.72" />
 		<PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
 
 		<!-- MongoDB -->
@@ -34,10 +41,12 @@
 		<!-- Serilog para logs estruturados (BONUS) -->
 		<PackageReference Include="Serilog.AspNetCore" Version="8.0.1" />
 		<PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
+		<PackageReference Include="xunit" Version="2.9.3" />
 	</ItemGroup>
 
 	<!-- Pastas necessárias -->
 	<ItemGroup>
+		
 		<Folder Include="Controllers\" />
 		<Folder Include="DTO\" />
 		<Folder Include="Hubs\" />
