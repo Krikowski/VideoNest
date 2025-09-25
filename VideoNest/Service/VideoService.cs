@@ -485,7 +485,7 @@ namespace VideoNest.Services {
         }
 
         /// <summary>
-        /// Valida QR Codes (timestamps >= 0)
+        /// Valida QR Codes (timestamps maior que 0)
         /// </summary>
         private static void ValidateQRCodes(List<QRCodeResult> qrCodes) {
             foreach (var qr in qrCodes) {
