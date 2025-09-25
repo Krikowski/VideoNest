@@ -12,6 +12,7 @@
 		<VSTestEnabled>false</VSTestEnabled>
 		<UseVSTest>false</UseVSTest>
 		<DisableMSBuildVSTest>true</DisableMSBuildVSTest>
+		<DotNetBuildUseVSTest>false</DotNetBuildUseVSTest>
 		<!-- Adicionado -->
 	</PropertyGroup>
 	<ItemGroup>
