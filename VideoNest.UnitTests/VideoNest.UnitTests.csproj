@@ -11,8 +11,9 @@
 		<DisableVSTestTask>true</DisableVSTestTask>
 		<VSTestEnabled>false</VSTestEnabled>
 		<UseVSTest>false</UseVSTest>
-		<!-- Corrigido para fechar com </UseVSTest> -->
 		<DisableMSBuildVSTest>true</DisableMSBuildVSTest>
+		<DotNetBuildUseVSTest>false</DotNetBuildUseVSTest>
+		<!-- Reforça desativação -->
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="coverlet.collector" Version="6.0.4">
@@ -33,7 +34,6 @@
 	<ItemGroup>
 		<Using Include="Xunit" />
 		<Using Include="FluentAssertions" />
-		<!-- Garantir acesso -->
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\VideoNest\VideoNest.csproj" />
