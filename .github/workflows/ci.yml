@@ -19,10 +19,18 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Create global.json
+      run: |
+        echo '{
+          "sdk": {
+            "version": "8.0.400"
+          }
+        }' > global.json
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '8.0.400' # Forçar SDK 8.0.400
+        dotnet-version: '8.0.400'
 
     - name: Verify .NET SDK
       run: dotnet --info
@@ -30,11 +38,17 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore VideoNest/VideoNest.csproj
 
+    - name: Restore test project dependencies
+      run: dotnet restore VideoNest.UnitTests/VideoNest.UnitTests.csproj
+
     - name: Build Application
       run: dotnet build VideoNest/VideoNest.csproj --no-restore --configuration Release
 
+    - name: Build Test Project
+      run: dotnet build VideoNest.UnitTests/VideoNest.UnitTests.csproj --no-restore --configuration Debug
+
     - name: Run Unit Tests with Coverage
-      run: dotnet test VideoNest.UnitTests/VideoNest.UnitTests.csproj --no-build --verbosity detailed --collect:"XPlat Code Coverage" --results-directory ./TestResults --logger:"trx;LogFileName=test-results.trx" --framework net8.0 --no-restore
+      run: dotnet test VideoNest.UnitTests/VideoNest.UnitTests.csproj --verbosity detailed --collect:"XPlat Code Coverage" --results-directory ./TestResults --logger:"trx;LogFileName=test-results.trx" --framework net8.0
       env:
         DOTNET_CLI_TELEMETRY_OPTOUT: 1
 
