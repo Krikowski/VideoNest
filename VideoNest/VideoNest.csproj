@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-
 	<PropertyGroup>
 		<TargetFramework>net8.0</TargetFramework>
 		<Nullable>enable</Nullable>
@@ -10,46 +9,35 @@
 		<PublishTrimmed>false</PublishTrimmed>
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 	</PropertyGroup>
-
 	<ItemGroup>
 		<!-- Web API e Swagger -->
 		<PackageReference Include="coverlet.msbuild" Version="6.0.4">
-		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		  <PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+			<PrivateAssets>all</PrivateAssets>
 		</PackageReference>
 		<PackageReference Include="FluentAssertions" Version="8.6.0" />
 		<PackageReference Include="Moq" Version="4.20.72" />
 		<PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
-
 		<!-- MongoDB -->
 		<PackageReference Include="MongoDB.Driver" Version="2.23.1" />
 		<PackageReference Include="MongoDB.Bson" Version="2.23.1" />
-
 		<!-- Redis -->
 		<PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="8.0.0" />
 		<PackageReference Include="StackExchange.Redis" Version="2.7.33" />
-
 		<!-- RabbitMQ -->
 		<PackageReference Include="RabbitMQ.Client" Version="6.8.1" />
-
 		<!-- Prometheus (BONUS) -->
 		<PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
-
 		<!-- JSON -->
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-
 		<!-- Serilog para logs estruturados (BONUS) -->
 		<PackageReference Include="Serilog.AspNetCore" Version="8.0.1" />
 		<PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
 	</ItemGroup>
-
-	<!-- Pastas necessárias -->
 	<ItemGroup>
-		
 		<Folder Include="Controllers\" />
 		<Folder Include="DTO\" />
 		<Folder Include="Hubs\" />
 		<Folder Include="Filters\" />
 	</ItemGroup>
-
 </Project>
