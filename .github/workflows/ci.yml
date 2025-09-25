@@ -31,7 +31,8 @@ jobs:
       run: dotnet build VideoNest/VideoNest.csproj --no-restore --configuration Release
 
     - name: Run Unit Tests with Coverage
-      run: dotnet test VideoNest/VideoNest.Tests/VideoNest.Tests.csproj --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./TestResults --no-restore
+      run: |
+        dotnet test VideoNest/VideoNest.Tests/VideoNest.Tests.csproj --no-build --verbosity detailed --collect:"XPlat Code Coverage" --results-directory ./TestResults --logger:"trx;LogFileName=test-results.trx"
       env:
         DOTNET_CLI_TELEMETRY_OPTOUT: 1
 
