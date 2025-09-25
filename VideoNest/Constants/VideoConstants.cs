@@ -39,4 +39,5 @@ public static class VideoConstants {
     /// Nome da coleção de contadores no MongoDB
     /// </summary>
     public const string CountersCollection = "counters";
+
 }
