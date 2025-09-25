@@ -24,6 +24,9 @@ jobs:
       with:
         dotnet-version: '8.0.400' # Forçar SDK 8.0.400
 
+    - name: Verify .NET SDK
+      run: dotnet --info
+
     - name: Restore dependencies
       run: dotnet restore VideoNest/VideoNest.csproj
 
@@ -32,6 +35,8 @@ jobs:
 
     - name: Run Unit Tests with Coverage
       run: dotnet test VideoNest.UnitTests/VideoNest.UnitTests.csproj --no-build --verbosity detailed --collect:"XPlat Code Coverage" --results-directory ./TestResults --logger:"trx;LogFileName=test-results.trx" --framework net8.0 --no-restore
+      env:
+        DOTNET_CLI_TELEMETRY_OPTOUT: 1
 
     - name: Upload Coverage Report
       uses: codecov/codecov-action@v4
