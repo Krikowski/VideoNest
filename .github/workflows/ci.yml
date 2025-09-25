@@ -22,7 +22,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '8.0.x'
+        dotnet-version: '8.0.x' # Alinhar com o SDK local (8.0.400)
 
     - name: Restore dependencies
       run: dotnet restore VideoNest/VideoNest.csproj
@@ -31,9 +31,10 @@ jobs:
       run: dotnet build VideoNest/VideoNest.csproj --no-restore --configuration Release
 
     - name: Run Unit Tests with Coverage
-      run: dotnet test VideoNest/VideoNest.Tests/VideoNest.Tests.csproj --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./TestResults --logger:"trx;LogFileName=test-results.trx"
+      run: dotnet test VideoNest/VideoNest.Tests/VideoNest.Tests.csproj --no-build --verbosity detailed --collect:"XPlat Code Coverage" --results-directory ./TestResults --logger:"trx;LogFileName=test-results.trx" --framework net8.0
       env:
         DOTNET_CLI_TELEMETRY_OPTOUT: 1
+        DOTNET_ROOT: /usr/share/dotnet
 
     - name: Upload Coverage Report
       uses: codecov/codecov-action@v4
