@@ -5,8 +5,6 @@ using Xunit;
 namespace VideoNest.UnitTests.Constants;
 
 public class VideoConstantsTests {
-
-
     [Fact]
     public void ValidStatuses_ShouldContainExpectedValues() {
         // Act & Assert
@@ -23,17 +21,19 @@ public class VideoConstantsTests {
     public void AllowedExtensions_ShouldValidateCorrectly(string extension, bool expected) {
         // Act
         var isAllowed = VideoConstants.AllowedExtensions.Contains(extension);
-        // Assert
-        isAllowed.Should().Be(expected); // Usa Should().Be para bool
-    }
 
+        // Assert
+        if (expected)
+            isAllowed.Should().BeTrue();
+        else
+            isAllowed.Should().BeFalse();
+    }
 
     [Fact]
     public void MaxFileSizeBytes_ShouldBe100MB() {
         // Assert (alinhado a RF1: Upload de .mp4/.avi com limite)
         VideoConstants.MaxFileSizeBytes.Should().Be(104_857_600L);
     }
-
 
     [Fact]
     public void CountersCollection_ShouldBeDefined() {
