@@ -2,6 +2,8 @@
 
 VideoNest - Serviço de Upload e Gerenciamento de Vídeos para Análise de QR Codes
 
+Link fluxograma Macro: https://miro.com/app/board/uXjVJDhgwZw=/?share_link_id=839679897976
+
 ## Introdução ao VideoNest
 
 Implementamos o VideoNest como um microsserviço de alta performance, projetado para o upload, gerenciamento e enfileiramento assíncrono de vídeos, com preparação para detecção de QR Codes em frames individuais. Escolhemos o nome "VideoNest" inspirados na metáfora de um "ninho de vídeos" – um ambiente seguro, organizado e acolhedor onde todos os vídeos podem ser depositados via upload e preparados para processamento eficiente. Assim como um ninho protege e nutre seus ovos até a eclosão, defendemos aqui uma solução que armazena vídeos com segurança, valida rigorosamente e enfileira de forma escalável, entregando valor analítico inicial como status de processamento e metadados aos usuários. Essa escolha de nomenclatura baseia-se em abordagens amigáveis e intuitivas comuns no mercado, como o "Nest" do Google para dispositivos inteligentes, facilitando adoção e memorabilidade em produtos reais.
