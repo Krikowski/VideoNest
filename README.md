@@ -55,16 +55,46 @@ Modelamos entidades como VideoResult ao redor do domínio, usando linguagem ubí
 Aplicamos SRP com camadas separadas (ex.: VideoService só processa), OCP via IVideoService, LSP em RabbitMQPublisher, ISP em IVideoRepository, e DIP no Program.cs com injeção, garantindo flexibilidade.
 
 ## Testes Unitários: Garantia de Segurança e Valores Representados
-Implementamos testes unitários com xUnit, Moq e FluentAssertions, cobrindo 85%+ do código – ex.: VideoConstantsTests.ValidStatuses_ShouldContainExpectedValues e VideosControllerTests.UploadVideo_ValidRequest_ShouldReturnOkWithVideoId – para validar edge-cases como uploads inválidos, prevenindo vulnerabilidades. Defendemos isso para confiabilidade (99.9% uptime), manutenibilidade e compliance (GDPR), incorporando "fail fast" para deployments diários.
+### Cobertura de Áreas Críticas
+
+Os testes automatizados abrangem as camadas centrais do sistema:
+Constantes de domínio: validação de status, extensões de arquivos, limites de tamanho e coleções MongoDB.
+Controllers (API REST): testes do upload de vídeo (POST /api/videos) e tratamento de erros, cobrindo casos de sucesso, falha de validação e exceções internas.
+DTOs (VideoUploadRequest): validação customizada de requests, mensagens de erro claras para formato/tamanho inválido.
+Mensageria (RabbitMQ): criação de infraestrutura (exchanges, filas, DLQ), publicação de mensagens e logs em caso de falhas.
+Repositórios (MongoDB): testes de persistência, atualização de status e adição de QR Codes em vídeos.
+
+### Impacto no Sistema
+Confiabilidade no upload: garante que apenas arquivos válidos (.mp4/.avi até 100MB) são aceitos.
+Resiliência operacional: confirma que o sistema lida corretamente com erros internos e de infraestrutura.
+Integridade de dados: assegura que vídeos e QR Codes são validados antes de persistência.
+Disponibilidade de mensageria: valida que a infraestrutura RabbitMQ é criada corretamente e que mensagens são publicadas com metadados consistentes.
+Transparência: testes verificam também geração de logs em pontos-chave, fortalecendo auditoria e rastreabilidade.
+
+### Quantidade de Testes
+VideoConstantsTests → 4
+VideosControllerTests → 3 principais (com cenários múltiplos via theory)
+VideoUploadRequestTests → 3
+RabbitMQPublisherTests → 3 ativos (+1 comentado de publicação avançada)
+VideoRepositoryTests → cobrindo métodos CRUD e operações relacionadas
+Aproximadamente 15 a 18 testes unitários, cobrindo regras de negócio, API, DTOs e mensageria.
+
+### Valor Agregado
+Redução de riscos em uploads inválidos ou falhas de fila RabbitMQ.
+Proteção da experiência do usuário: garante respostas adequadas (400, 500) em cenários de erro.
+Escalabilidade segura: RabbitMQ e MongoDB testados garantem que o sistema pode crescer com segurança.
+Confiabilidade para integração: os testes preparam a API para interoperar com outros serviços (ex.: ScanForge) sem regressões.
+Documentação executável: os testes mostram de forma prática como cada regra de negócio deve se comportar.
+
+### Conclusão: 
+A suíte de testes do VideoNest cobre pontos críticos de upload, validação, persistência e mensageria, entregando segurança operacional e confiança para evolução do sistema, ela é cirúrgica em áreas de maior risco, agregando alto valor para estabilidade em produção.
 
 ## Instalação e Uso
-
 Requisitos: Docker, .NET SDK 8.0.
 Build e Run: dotnet run ou via Docker.
-Endpoints:
 
+Endpoints:
 POST /api/videos (upload – RF1).
 GET /api/videos/{id}/status (status – RF6).
-
 
 Swagger: Acesse /swagger para docs.
