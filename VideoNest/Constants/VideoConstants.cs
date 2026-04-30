@@ -3,13 +3,14 @@
 namespace VideoNest.Constants;
 
 /// <summary>
-/// Constantes de validação para o domínio de vídeos
-/// Garante consistência nos status e configurações do sistema
+/// Constantes de validação para o domínio de vídeos.
+/// Garante consistência nos status e configurações do sistema.
 /// </summary>
-public static class VideoConstants {
+public static class VideoConstants
+{
     /// <summary>
-    /// Status válidos para o processamento de vídeos (RF6)
-    /// Usado para validação em UpdateStatusAsync
+    /// Status válidos para o processamento de vídeos.
+    /// Usado para validação em UpdateStatusAsync.
     /// </summary>
     public static readonly IReadOnlyList<string> ValidStatuses = new List<string>
     {
@@ -20,7 +21,7 @@ public static class VideoConstants {
     };
 
     /// <summary>
-    /// Extensões de arquivo permitidas para upload (RF1)
+    /// Extensões de arquivo permitidas para upload.
     /// </summary>
     public static readonly IReadOnlyList<string> AllowedExtensions = new List<string>
     {
@@ -31,13 +32,12 @@ public static class VideoConstants {
     };
 
     /// <summary>
-    /// Tamanho máximo de arquivo em bytes (100MB)
+    /// Tamanho máximo permitido para upload de vídeo em bytes: 100 MB.
     /// </summary>
     public const long MaxFileSizeBytes = 104_857_600;
 
     /// <summary>
-    /// Nome da coleção de contadores no MongoDB
+    /// Nome da coleção de contadores utilizada no MongoDB.
     /// </summary>
     public const string CountersCollection = "counters";
-
 }

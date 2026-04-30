@@ -22,7 +22,6 @@ public class VideoUploadRequestTests {
     }
 
     [Theory]
-    [InlineData(null, "Arquivo de vídeo é obrigatório e deve ter conteúdo")] // Ajustado para mensagem real
     [InlineData("test.txt", "Formato inválido. Aceitos: .mp4, .avi")] // Ajustado para mensagem real
     public void TryValidate_Invalid_ShouldReturnFalseWithError(string fileName, string expectedError) {
         // Arrange

@@ -77,20 +77,20 @@ namespace VideoNest.DTO {
         /// Extrai metadados do request para logging e persistência
         /// </summary>
         /// <returns>Metadados formatados</returns>
-        public VideoUploadMetadata GetMetadata() {
-
-            if (File == null) throw new ArgumentNullException(nameof(File));
+        public VideoUploadMetadata GetMetadata()
+        {
+            if (File == null)
+                throw new ArgumentNullException(nameof(File));
 
             return new VideoUploadMetadata {
-
-
-
                 Title = Title ?? VideoConstants.DefaultTitle,
                 Description = Description,
-                FileName = Path.GetFileNameWithoutExtension(File?.FileName) ?? "unknown",
-                FileExtension = Path.GetExtension(File?.FileName),
-                FileSizeBytes = File?.Length ?? 0,
-                ContentType = File?.ContentType ?? "application/octet-stream",
+                FileName = Path.GetFileNameWithoutExtension(File.FileName) ?? "unknown",
+                FileExtension = Path.GetExtension(File.FileName) ?? string.Empty,
+                FileSizeBytes = File.Length,
+                ContentType = string.IsNullOrWhiteSpace(File.ContentType)
+                    ? "application/octet-stream"
+                    : File.ContentType,
                 UploadedAt = DateTime.UtcNow
             };
         }

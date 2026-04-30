@@ -499,13 +499,24 @@ namespace VideoNest.Services {
         #region Cache Redis (FASE 03)
 
         /// <summary>
-        /// Métodos de cache isolados
-        /// Cacheia status Redis
+        /// Representa o status de vídeo armazenado em cache.
         /// </summary>
-        private async Task SetStatusCacheAsync(int videoId, string status, int duration) {
-            try {
+        private sealed class CachedVideoStatus
+        {
+            public string Status { get; set; } = "Desconhecido";
+            public int Duration { get; set; }
+            public DateTime CachedAt { get; set; }
+        }
+
+        /// <summary>
+        /// Cacheia status Redis.
+        /// </summary>
+        private async Task SetStatusCacheAsync(int videoId, string status, int duration)
+        {
+            try
+            {
                 var key = $"video_status_{videoId}";
-                var value = JsonConvert.SerializeObject(new {
+                var value = JsonConvert.SerializeObject(new CachedVideoStatus {
                     Status = status,
                     Duration = duration,
                     CachedAt = DateTime.UtcNow
@@ -516,51 +527,60 @@ namespace VideoNest.Services {
                 };
 
                 await _cache.SetStringAsync(key, value, options);
-            } catch (Exception ex) {
+            } catch (Exception ex)
+            {
                 _logger.LogWarning(ex, "Erro cache Redis: VideoId={Id}", videoId);
             }
         }
 
         /// <summary>
-        /// Recupera status do cache Redis
+        /// Recupera status do cache Redis.
         /// </summary>
-        private async Task<VideoResult?> GetStatusCacheAsync(int videoId) {
-            try {
+        private async Task<VideoResult?> GetStatusCacheAsync(int videoId)
+        {
+            try
+            {
                 var key = $"video_status_{videoId}";
                 var value = await _cache.GetStringAsync(key);
 
-                if (string.IsNullOrEmpty(value)) return null;
+                if (string.IsNullOrWhiteSpace(value))
+                    return null;
 
-                var data = JsonConvert.DeserializeObject<dynamic>(value);
+                var data = JsonConvert.DeserializeObject<CachedVideoStatus>(value);
 
-                if (data.CachedAt != null) {
-                    var cachedAt = DateTime.Parse(data.CachedAt.ToString());
-                    if (DateTime.UtcNow - cachedAt > TimeSpan.FromMinutes(Limits.CacheExpirationWarningMinutes)) {
-                        _logger.LogDebug("Cache expirado, removendo: VideoId={VideoId}", videoId);
-                        await _cache.RemoveAsync(key);
-                        return null;
-                    }
+                if (data is null)
+                    return null;
+
+                if (DateTime.UtcNow - data.CachedAt > TimeSpan.FromMinutes(Limits.CacheExpirationWarningMinutes))
+                {
+                    _logger.LogDebug("Cache expirado, removendo: VideoId={VideoId}", videoId);
+                    await _cache.RemoveAsync(key);
+                    return null;
                 }
 
                 return new VideoResult {
                     VideoId = videoId,
-                    Status = data.Status.ToString() ?? "Desconhecido",
-                    Duration = (int?)data.Duration ?? 0
+                    Status = string.IsNullOrWhiteSpace(data.Status) ? "Desconhecido" : data.Status,
+                    Duration = data.Duration
                 };
-            } catch (Exception ex) {
+            } catch (Exception ex)
+            {
                 _logger.LogWarning(ex, "Erro cache get: VideoId={Id}", videoId);
                 return null;
             }
         }
 
         /// <summary>
-        /// Invalida cache de status
+        /// Invalida cache de status.
         /// </summary>
-        private async Task InvalidateStatusCacheAsync(int videoId) {
-            try {
+        private async Task InvalidateStatusCacheAsync(int videoId)
+        {
+            try
+            {
                 var key = $"video_status_{videoId}";
                 await _cache.RemoveAsync(key);
-            } catch (Exception ex) {
+            } catch (Exception ex)
+            {
                 _logger.LogWarning(ex, "Erro invalidar cache: VideoId={Id}", videoId);
             }
         }
