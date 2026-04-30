@@ -109,7 +109,7 @@ namespace VideoNest.Services {
             _hubContext = hubContext ?? throw new ArgumentNullException(nameof(hubContext));
             _cache = cache ?? throw new ArgumentNullException(nameof(cache));
 
-            _videoBasePath = configuration["VideoStorage:BasePath"] ?? "/uploads";
+            _videoBasePath = ResolveStoragePath(configuration["VideoStorage:BasePath"]);
             _queueName = configuration["RabbitMQ:QueueName"] ?? "video_queue";
 
             InitializeUploadDirectory();
@@ -572,15 +572,24 @@ namespace VideoNest.Services {
         /// <summary>
         /// Inicializa diretório de uploads
         /// </summary>
-        private void InitializeUploadDirectory() {
-            try {
-                if (!Directory.Exists(_videoBasePath)) {
-                    Directory.CreateDirectory(_videoBasePath);
-                    _logger.LogInformation("Diretório de uploads criado: {VideoBasePath}", _videoBasePath);
-                }
-            } catch (Exception ex) {
+        private void InitializeUploadDirectory()
+        {
+            try
+            {
+                Directory.CreateDirectory(_videoBasePath);
+
+                _logger.LogInformation(
+                    "Diretório de uploads configurado: {VideoBasePath}",
+                    _videoBasePath
+                );
+            } catch (Exception ex)
+            {
                 _logger.LogError(ex, "Erro ao criar diretório {VideoBasePath}", _videoBasePath);
-                throw new InvalidOperationException($"Falha ao configurar armazenamento: {ex.Message}", ex);
+
+                throw new InvalidOperationException(
+                    $"Falha ao configurar armazenamento: {ex.Message}",
+                    ex
+                );
             }
         }
 
@@ -629,6 +638,17 @@ namespace VideoNest.Services {
         /// </summary>
         public void Dispose() {
             GC.SuppressFinalize(this);
+        }
+
+        private static string ResolveStoragePath(string? configuredPath)
+        {
+            var basePath = string.IsNullOrWhiteSpace(configuredPath)
+                ? "uploads"
+                : configuredPath;
+
+            return Path.IsPathRooted(basePath)
+                ? basePath
+                : Path.Combine(Directory.GetCurrentDirectory(), basePath);
         }
 
         #endregion
