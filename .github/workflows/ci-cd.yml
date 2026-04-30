@@ -11,6 +11,7 @@ permissions:
   packages: write
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   DOTNET_VERSION: "8.0.x"
   PROJECT_PATH: "VideoNest/VideoNest.csproj"
   TEST_PROJECT_PATH: "VideoNest.UnitTests/VideoNest.UnitTests.csproj"
