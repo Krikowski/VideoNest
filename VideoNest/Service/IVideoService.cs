@@ -35,7 +35,7 @@ namespace VideoNest.Services {
         /// Atualizar status do vídeo (chamado pelo ScanForge)
         /// </summary>
         /// <param name="videoId">ID do vídeo</param>
-        /// <param name="status">Novo status (Na Fila, Processando, Concluído, Erro)</param>
+        /// <param name="status">Novo status (Na Fila, Processando, Concluido, Erro)</param>
         /// <param name="errorMessage">Mensagem de erro se status for "Erro"</param>
         /// <param name="duration">Duração do vídeo em segundos</param>
         /// <returns>Task</returns>

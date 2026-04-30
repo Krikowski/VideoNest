@@ -68,7 +68,7 @@ namespace VideoNest.Controllers {
 
                 stopwatch.Stop();
 
-                _logger.LogInformation("Upload concluído com sucesso: VideoId={VideoId} em {ElapsedMs}ms",
+                _logger.LogInformation("Upload Concluido com sucesso: VideoId={VideoId} em {ElapsedMs}ms",
                     videoId, stopwatch.ElapsedMilliseconds);
 
                 // 5. Resposta enriquecida com metadados
@@ -154,7 +154,7 @@ namespace VideoNest.Controllers {
         /// <param name="id">ID do vídeo</param>
         /// <returns>Lista de QR Codes com timestamps</returns>
         /// <response code="200">Resultados encontrados</response>
-        /// <response code="400">Processamento não concluído ou erro</response>
+        /// <response code="400">Processamento não Concluido ou erro</response>
         /// <response code="404">Vídeo não encontrado</response>
         /// <response code="500">Erro interno</response>
         [HttpGet("{id}/results")]
@@ -176,14 +176,14 @@ namespace VideoNest.Controllers {
                     return NotFound(new { Message = "Vídeo não encontrado" });
                 }
 
-                // ✅ CORREÇÃO: Validação mais flexível - permite "Concluído" ou "Erro"
-                if (video.Status != "Concluído" && video.Status != "Erro") {
+                // ✅ CORREÇÃO: Validação mais flexível - permite "Concluido" ou "Erro"
+                if (video.Status != "Concluido" && video.Status != "Erro") {
                     _logger.LogDebug("Processamento não finalizado: VideoId={VideoId}, Status={Status}", id, video.Status);
                     return BadRequest(new {
-                        Message = "Processamento não concluído",
+                        Message = "Processamento não Concluido",
                         CurrentStatus = video.Status,
                         VideoId = id,
-                        ExpectedStatus = new[] { "Concluído", "Erro" }
+                        ExpectedStatus = new[] { "Concluido", "Erro" }
                     });
                 }
 
@@ -226,7 +226,7 @@ namespace VideoNest.Controllers {
             return status switch {
                 "Na Fila" => 10,
                 "Processando" => 50,
-                "Concluído" => 100,
+                "Concluido" => 100,
                 "Erro" => 0,
                 _ => 0
             };

@@ -85,7 +85,7 @@ namespace VideoNest.UnitTests.Services {
         public async Task Repository_GetVideoByIdAsync_ValidId_ShouldReturnVideo() {
             // Arrange
             var videoId = 1;
-            var video = new VideoResult { VideoId = videoId, Title = "Test", Status = "Concluído" };
+            var video = new VideoResult { VideoId = videoId, Title = "Test", Status = "Concluido" };
             _mockRepository.Setup(r => r.GetVideoByIdAsync(videoId)).ReturnsAsync(video);
 
             // Act

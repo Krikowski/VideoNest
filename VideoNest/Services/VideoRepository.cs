@@ -138,11 +138,11 @@ public class VideoRepository : IVideoRepository {
 
     /// <summary>
     /// Atualiza status do vídeo.
-    /// Fluxo: "Na Fila" → "Processando" → "Concluído"/"Erro".
+    /// Fluxo: "Na Fila" → "Processando" → "Concluido"/"Erro".
     /// Valida status usando VideoConstants.ValidStatuses.
     /// </summary>
     /// <param name="videoId">ID do vídeo sequencial.</param>
-    /// <param name="status">Novo status ("Na Fila", "Processando", "Concluído", "Erro").</param>
+    /// <param name="status">Novo status ("Na Fila", "Processando", "Concluido", "Erro").</param>
     /// <param name="errorMessage">Mensagem de erro (se Status="Erro").</param>
     /// <param name="duration">Duração total em segundos (default 0).</param>
     /// <exception cref="ArgumentException">Status inválido ou ID maior igual 0.</exception>

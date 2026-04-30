@@ -47,7 +47,7 @@ namespace VideoNest.Services {
         private static class VideoStatuses {
             public const string Queued = "Na Fila";
             public const string Processing = "Processando";
-            public const string Completed = "Concluído";
+            public const string Completed = "Concluido";
             public const string Error = "Erro";
         }
 
@@ -138,7 +138,7 @@ namespace VideoNest.Services {
                 videoId = await new VideoUploadOrchestrator(this).ProcessAsync(file, request);
 
                 UploadsTotal.Inc(); 
-                _logger.LogInformation("✅ Upload concluído: VideoId={Id}", videoId);
+                _logger.LogInformation("✅ Upload concluido: VideoId={Id}", videoId);
 
                 return videoId;
             } catch (ArgumentException ex) {

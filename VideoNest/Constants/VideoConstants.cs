@@ -15,7 +15,7 @@ public static class VideoConstants {
     {
         "Na Fila",
         "Processando",
-        "Concluído",
+        "Concluido",
         "Erro"
     };
 

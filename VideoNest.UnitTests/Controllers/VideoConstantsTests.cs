@@ -8,7 +8,7 @@ public class VideoConstantsTests {
     [Fact]
     public void ValidStatuses_ShouldContainExpectedValues() {
         // Act & Assert
-        VideoConstants.ValidStatuses.Should().BeEquivalentTo(new[] { "Na Fila", "Processando", "Concluído", "Erro" });
+        VideoConstants.ValidStatuses.Should().BeEquivalentTo(new[] { "Na Fila", "Processando", "Concluido", "Erro" });
         VideoConstants.ValidStatuses.Should().HaveCount(4, "porque há 4 status válidos no RF6");
     }
 
