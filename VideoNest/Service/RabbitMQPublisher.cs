@@ -26,11 +26,7 @@ public sealed class RabbitMQPublisher : IRabbitMQPublisher, IDisposable
     private const string DefaultVirtualHost = "/";
 
     private readonly ILogger<RabbitMQPublisher> _logger;
-    private readonly string _hostName;
-    private readonly int _port;
-    private readonly string _userName;
-    private readonly string _password;
-    private readonly string _virtualHost;
+    private readonly IConnectionFactory _connectionFactory;
     private readonly string _queueName;
     private readonly string _exchangeName;
     private readonly string _routingKey;
@@ -42,23 +38,27 @@ public sealed class RabbitMQPublisher : IRabbitMQPublisher, IDisposable
     private bool _disposed;
 
     /// <summary>
-    /// Inicializa uma nova instância de <see cref="RabbitMQPublisher"/>.
+    /// Inicializa uma nova instância de <see cref="RabbitMQPublisher"/> 
     /// </summary>
-    /// <param name="logger">Logger da classe.</param>
-    /// <param name="configuration">Configurações da aplicação.</param>
-    /// <exception cref="ArgumentNullException">Lançada quando uma dependência obrigatória não é informada.</exception>
     public RabbitMQPublisher(ILogger<RabbitMQPublisher> logger, IConfiguration configuration)
+        : this(CreateConnectionFactory(configuration), configuration, logger)
     {
+    }
+
+    /// <summary>
+    /// Inicializa uma nova instância de <see cref="RabbitMQPublisher"/> permitindo injeção da factory para testes.
+    /// </summary>
+    public RabbitMQPublisher(
+        IConnectionFactory connectionFactory,
+        IConfiguration configuration,
+        ILogger<RabbitMQPublisher> logger)
+    {
+        _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         if (configuration is null)
             throw new ArgumentNullException(nameof(configuration));
 
-        _hostName = GetConfigurationValue(configuration, "RabbitMQ:HostName", DefaultHostName);
-        _port = GetConfigurationIntValue(configuration, "RabbitMQ:Port", DefaultRabbitMqPort);
-        _userName = GetConfigurationValue(configuration, "RabbitMQ:UserName", DefaultUserName);
-        _password = GetConfigurationValue(configuration, "RabbitMQ:Password", DefaultPassword);
-        _virtualHost = GetConfigurationValue(configuration, "RabbitMQ:VirtualHost", DefaultVirtualHost);
         _queueName = GetConfigurationValue(configuration, "RabbitMQ:QueueName", DefaultQueueName);
         _exchangeName = GetConfigurationValue(configuration, "RabbitMQ:ExchangeName", DefaultExchangeName);
         _routingKey = GetConfigurationValue(configuration, "RabbitMQ:RoutingKey", DefaultRoutingKey);
@@ -82,17 +82,12 @@ public sealed class RabbitMQPublisher : IRabbitMQPublisher, IDisposable
                     return;
                 }
 
-                _logger.LogInformation("Declarando infraestrutura RabbitMQ.");
-
                 _channel.ExchangeDeclare(_deadLetterExchange, ExchangeType.Direct, durable: true, autoDelete: false);
-                _logger.LogDebug("Dead Letter Exchange declarada: {Exchange}", _deadLetterExchange);
 
                 _channel.QueueDeclare(_deadLetterQueue, durable: true, exclusive: false, autoDelete: false);
                 _channel.QueueBind(_deadLetterQueue, _deadLetterExchange, _deadLetterQueue);
-                _logger.LogDebug("Dead Letter Queue declarada: {Queue}", _deadLetterQueue);
 
                 _channel.ExchangeDeclare(_exchangeName, ExchangeType.Direct, durable: true, autoDelete: false);
-                _logger.LogDebug("Exchange principal declarada: {Exchange}", _exchangeName);
 
                 var queueArgs = new Dictionary<string, object>
                 {
@@ -130,9 +125,14 @@ public sealed class RabbitMQPublisher : IRabbitMQPublisher, IDisposable
     /// <summary>
     /// Publica uma mensagem de vídeo em formato JSON no RabbitMQ.
     /// </summary>
-    /// <param name="message">Objeto que será serializado e publicado.</param>
     public async Task PublishVideoMessageAsync(object message)
     {
+        if (message is null)
+        {
+            _logger.LogWarning("Mensagem nula. Publicação ignorada.");
+            return;
+        }
+
         try
         {
             await Task.Run(() => {
@@ -146,7 +146,6 @@ public sealed class RabbitMQPublisher : IRabbitMQPublisher, IDisposable
 
                 var json = JsonSerializer.Serialize(message);
                 var body = Encoding.UTF8.GetBytes(json);
-
                 var properties = CreateBasicProperties("application/json");
                 var videoId = ExtractVideoId(json);
 
@@ -173,7 +172,7 @@ public sealed class RabbitMQPublisher : IRabbitMQPublisher, IDisposable
             _logger.LogError(
                 ex,
                 "Falha ao publicar mensagem: {MessageType}; Error={Error}",
-                message?.GetType().Name ?? "Unknown",
+                message.GetType().Name,
                 ex.Message
             );
 
@@ -184,8 +183,6 @@ public sealed class RabbitMQPublisher : IRabbitMQPublisher, IDisposable
     /// <summary>
     /// Publica uma mensagem textual de teste no RabbitMQ.
     /// </summary>
-    /// <param name="message">Mensagem textual que será publicada.</param>
-    /// <exception cref="ArgumentException">Lançada quando a mensagem é vazia.</exception>
     public void PublishMessage(string message)
     {
         if (string.IsNullOrWhiteSpace(message))
@@ -242,42 +239,16 @@ public sealed class RabbitMQPublisher : IRabbitMQPublisher, IDisposable
 
         try
         {
-            var factory = new ConnectionFactory {
-                HostName = _hostName,
-                Port = _port,
-                UserName = _userName,
-                Password = _password,
-                VirtualHost = _virtualHost,
-                AutomaticRecoveryEnabled = true,
-                RequestedHeartbeat = TimeSpan.FromSeconds(60),
-                NetworkRecoveryInterval = TimeSpan.FromSeconds(5)
-            };
-
             _channel?.Dispose();
             _connection?.Dispose();
 
-            _connection = factory.CreateConnection();
+            _connection = _connectionFactory.CreateConnection();
             _channel = _connection.CreateModel();
 
-            _logger.LogDebug(
-                "Conexão RabbitMQ criada. Host={Host}; Port={Port}; User={User}; VirtualHost={VirtualHost}",
-                _hostName,
-                _port,
-                _userName,
-                _virtualHost
-            );
+            _logger.LogDebug("Conexão RabbitMQ criada.");
         } catch (Exception ex)
         {
-            _logger.LogError(
-                ex,
-                "Falha ao criar conexão RabbitMQ. Host={Host}; Port={Port}; User={User}; VirtualHost={VirtualHost}; Error={Error}",
-                _hostName,
-                _port,
-                _userName,
-                _virtualHost,
-                ex.Message
-            );
-
+            _logger.LogError(ex, "Falha ao criar conexão RabbitMQ: {Error}", ex.Message);
             throw;
         }
     }
@@ -335,6 +306,23 @@ public sealed class RabbitMQPublisher : IRabbitMQPublisher, IDisposable
             _channel = null;
             _connection = null;
         }
+    }
+
+    private static IConnectionFactory CreateConnectionFactory(IConfiguration configuration)
+    {
+        if (configuration is null)
+            throw new ArgumentNullException(nameof(configuration));
+
+        return new ConnectionFactory {
+            HostName = GetConfigurationValue(configuration, "RabbitMQ:HostName", DefaultHostName),
+            Port = GetConfigurationIntValue(configuration, "RabbitMQ:Port", DefaultRabbitMqPort),
+            UserName = GetConfigurationValue(configuration, "RabbitMQ:UserName", DefaultUserName),
+            Password = GetConfigurationValue(configuration, "RabbitMQ:Password", DefaultPassword),
+            VirtualHost = GetConfigurationValue(configuration, "RabbitMQ:VirtualHost", DefaultVirtualHost),
+            AutomaticRecoveryEnabled = true,
+            RequestedHeartbeat = TimeSpan.FromSeconds(60),
+            NetworkRecoveryInterval = TimeSpan.FromSeconds(5)
+        };
     }
 
     private static string GetConfigurationValue(IConfiguration configuration, string key, string defaultValue)
