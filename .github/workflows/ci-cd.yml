@@ -8,8 +8,8 @@ on:
 
 env:
   DOTNET_VERSION: "8.0.x"
-  SOLUTION_PATH: "VideoNest/VideoNest/VideoNest.sln"
-  PROJECT_PATH: "VideoNest/VideoNest/VideoNest.csproj"
+  PROJECT_PATH: "VideoNest/VideoNest.csproj"
+  TEST_PROJECT_PATH: "VideoNest.UnitTests/VideoNest.UnitTests.csproj"
 
 jobs:
   build-test:
@@ -24,17 +24,23 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Restore
-        run: dotnet restore ${{ env.SOLUTION_PATH }}
+      - name: Restore API
+        run: dotnet restore ${{ env.PROJECT_PATH }}
 
-      - name: Build
-        run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release --no-restore
+      - name: Restore tests
+        run: dotnet restore ${{ env.TEST_PROJECT_PATH }}
+
+      - name: Build API
+        run: dotnet build ${{ env.PROJECT_PATH }} --configuration Release --no-restore
+
+      - name: Build tests
+        run: dotnet build ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test ${{ env.SOLUTION_PATH }} --configuration Release --no-build
+        run: dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-build --verbosity normal
 
       - name: Publish
-        run: dotnet publish ${{ env.PROJECT_PATH }} --configuration Release --output ./publish
+        run: dotnet publish ${{ env.PROJECT_PATH }} --configuration Release --no-build --output ./publish
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
