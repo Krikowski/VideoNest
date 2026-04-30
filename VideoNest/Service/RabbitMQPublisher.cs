@@ -1,21 +1,36 @@
-﻿using RabbitMQ.Client;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using RabbitMQ.Client;
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Text.Json;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Configuration;
 using System.Threading.Tasks;
-using System.Collections.Generic;
 
 namespace VideoNest.Services;
 
-public class RabbitMQPublisher : IRabbitMQPublisher, IDisposable {
+/// <summary>
+/// Publicador responsável por declarar a infraestrutura RabbitMQ e publicar mensagens da aplicação.
+/// </summary>
+public sealed class RabbitMQPublisher : IRabbitMQPublisher, IDisposable
+{
+    private const int DefaultRabbitMqPort = 5672;
+    private const string DefaultHostName = "localhost";
+    private const string DefaultUserName = "admin";
+    private const string DefaultPassword = "admin";
+    private const string DefaultQueueName = "video_queue";
+    private const string DefaultExchangeName = "video_exchange";
+    private const string DefaultRoutingKey = "video_key";
+    private const string DefaultDeadLetterExchange = "dlx_video_exchange";
+    private const string DefaultDeadLetterQueue = "dlq_video_queue";
+    private const string DefaultVirtualHost = "/";
+
     private readonly ILogger<RabbitMQPublisher> _logger;
-    private readonly IConfiguration _configuration;
     private readonly string _hostName;
     private readonly int _port;
     private readonly string _userName;
     private readonly string _password;
+    private readonly string _virtualHost;
     private readonly string _queueName;
     private readonly string _exchangeName;
     private readonly string _routingKey;
@@ -24,104 +39,116 @@ public class RabbitMQPublisher : IRabbitMQPublisher, IDisposable {
 
     private IConnection? _connection;
     private IModel? _channel;
-    private bool _disposed = false;
+    private bool _disposed;
 
-    public RabbitMQPublisher(ILogger<RabbitMQPublisher> logger, IConfiguration configuration) {
+    /// <summary>
+    /// Inicializa uma nova instância de <see cref="RabbitMQPublisher"/>.
+    /// </summary>
+    /// <param name="logger">Logger da classe.</param>
+    /// <param name="configuration">Configurações da aplicação.</param>
+    /// <exception cref="ArgumentNullException">Lançada quando uma dependência obrigatória não é informada.</exception>
+    public RabbitMQPublisher(ILogger<RabbitMQPublisher> logger, IConfiguration configuration)
+    {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
 
-        _hostName = _configuration["RabbitMQ:HostName"] ?? "rabbitmq_hackathon";
-        _port = int.Parse(_configuration["RabbitMQ:Port"] ?? "5672");
-        _userName = _configuration["RabbitMQ:UserName"] ?? "admin";
-        _password = _configuration["RabbitMQ:Password"] ?? "admin";
-        _queueName = _configuration["RabbitMQ:QueueName"] ?? "video_queue";
-        _exchangeName = "video_exchange";
-        _routingKey = "video_key";
-        _deadLetterExchange = _configuration["RabbitMQ:DeadLetterExchange"] ?? "dlx_video_exchange";
-        _deadLetterQueue = _configuration["RabbitMQ:DeadLetterQueue"] ?? "dlq_video_queue";
+        if (configuration is null)
+            throw new ArgumentNullException(nameof(configuration));
+
+        _hostName = GetConfigurationValue(configuration, "RabbitMQ:HostName", DefaultHostName);
+        _port = GetConfigurationIntValue(configuration, "RabbitMQ:Port", DefaultRabbitMqPort);
+        _userName = GetConfigurationValue(configuration, "RabbitMQ:UserName", DefaultUserName);
+        _password = GetConfigurationValue(configuration, "RabbitMQ:Password", DefaultPassword);
+        _virtualHost = GetConfigurationValue(configuration, "RabbitMQ:VirtualHost", DefaultVirtualHost);
+        _queueName = GetConfigurationValue(configuration, "RabbitMQ:QueueName", DefaultQueueName);
+        _exchangeName = GetConfigurationValue(configuration, "RabbitMQ:ExchangeName", DefaultExchangeName);
+        _routingKey = GetConfigurationValue(configuration, "RabbitMQ:RoutingKey", DefaultRoutingKey);
+        _deadLetterExchange = GetConfigurationValue(configuration, "RabbitMQ:DeadLetterExchange", DefaultDeadLetterExchange);
+        _deadLetterQueue = GetConfigurationValue(configuration, "RabbitMQ:DeadLetterQueue", DefaultDeadLetterQueue);
     }
 
     /// <summary>
-    /// Declara toda a infraestrutura RabbitMQ
+    /// Declara exchanges, filas e bindings necessários para o processamento assíncrono de vídeos.
     /// </summary>
-    public async Task DeclareInfrastructureAsync() {
-        try {
+    public async Task DeclareInfrastructureAsync()
+    {
+        try
+        {
             await Task.Run(() => {
                 CreateConnection();
-                if (_channel == null) {
-                    _logger.LogWarning("⚠️ Canal RabbitMQ não disponível para declaração de infraestrutura");
+
+                if (_channel is null)
+                {
+                    _logger.LogWarning("Canal RabbitMQ não disponível para declaração de infraestrutura.");
                     return;
                 }
 
-                _logger.LogInformation("🔄 Declarando infraestrutura RabbitMQ...");
+                _logger.LogInformation("Declarando infraestrutura RabbitMQ.");
 
-                // 1. Dead Letter Exchange
-                _channel.ExchangeDeclare(_deadLetterExchange, "direct", durable: true, autoDelete: false);
-                _logger.LogDebug("✅ Dead Letter Exchange: {Exchange}", _deadLetterExchange);
+                _channel.ExchangeDeclare(_deadLetterExchange, ExchangeType.Direct, durable: true, autoDelete: false);
+                _logger.LogDebug("Dead Letter Exchange declarada: {Exchange}", _deadLetterExchange);
 
-                // 2. Dead Letter Queue
                 _channel.QueueDeclare(_deadLetterQueue, durable: true, exclusive: false, autoDelete: false);
                 _channel.QueueBind(_deadLetterQueue, _deadLetterExchange, _deadLetterQueue);
-                _logger.LogDebug("✅ Dead Letter Queue: {Queue}", _deadLetterQueue);
+                _logger.LogDebug("Dead Letter Queue declarada: {Queue}", _deadLetterQueue);
 
-                // 3. Main Exchange
-                _channel.ExchangeDeclare(_exchangeName, "direct", durable: true, autoDelete: false);
-                _logger.LogDebug("✅ Main Exchange: {Exchange}", _exchangeName);
+                _channel.ExchangeDeclare(_exchangeName, ExchangeType.Direct, durable: true, autoDelete: false);
+                _logger.LogDebug("Exchange principal declarada: {Exchange}", _exchangeName);
 
-                // 4. Main Queue com DLX arguments
                 var queueArgs = new Dictionary<string, object>
                 {
                     { "x-dead-letter-exchange", _deadLetterExchange },
                     { "x-dead-letter-routing-key", _deadLetterQueue },
-                    { "x-message-ttl", 300000 }, // 5 minutos
-                    { "x-max-length", 10000 }, // Limite de mensagens
-                    { "x-overflow", "drop-head" } // Drop mais antigas se lotar
+                    { "x-message-ttl", 300000 },
+                    { "x-max-length", 10000 },
+                    { "x-overflow", "drop-head" }
                 };
 
-                _channel.QueueDeclare(_queueName, durable: true, exclusive: false, autoDelete: false, arguments: queueArgs);
-                _channel.QueueBind(_queueName, _exchangeName, _routingKey);
-                _logger.LogDebug("✅ Main Queue: {Queue} com DLX configurado", _queueName);
+                _channel.QueueDeclare(
+                    _queueName,
+                    durable: true,
+                    exclusive: false,
+                    autoDelete: false,
+                    arguments: queueArgs
+                );
 
-                _logger.LogInformation("✅ Infraestrutura RabbitMQ declarada completamente");
+                _channel.QueueBind(_queueName, _exchangeName, _routingKey);
+
+                _logger.LogInformation(
+                    "Infraestrutura RabbitMQ declarada. Exchange={Exchange}; Queue={Queue}; RoutingKey={RoutingKey}",
+                    _exchangeName,
+                    _queueName,
+                    _routingKey
+                );
             });
-        } catch (Exception ex) {
-            _logger.LogError(ex, "❌ Falha ao declarar infraestrutura RabbitMQ: {Error}", ex.Message);
+        } catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao declarar infraestrutura RabbitMQ: {Error}", ex.Message);
             throw;
         }
     }
 
     /// <summary>
-    /// Publica mensagem de vídeo para RabbitMQ (método principal)
+    /// Publica uma mensagem de vídeo em formato JSON no RabbitMQ.
     /// </summary>
-    public async Task PublishVideoMessageAsync(object message) {
-        try {
+    /// <param name="message">Objeto que será serializado e publicado.</param>
+    public async Task PublishVideoMessageAsync(object message)
+    {
+        try
+        {
             await Task.Run(() => {
                 CreateConnection();
-                if (_channel == null) {
-                    _logger.LogWarning("⚠️ Canal RabbitMQ não disponível - mensagem não enviada");
+
+                if (_channel is null)
+                {
+                    _logger.LogWarning("Canal RabbitMQ não disponível. Mensagem de vídeo não enviada.");
                     return;
                 }
 
                 var json = JsonSerializer.Serialize(message);
                 var body = Encoding.UTF8.GetBytes(json);
 
-                var properties = _channel.CreateBasicProperties();
-                properties.Persistent = true;
-                properties.ContentType = "application/json";
-                properties.DeliveryMode = 2; // Persistent
-
-                // Extrair VideoId de forma segura
-                string videoId = "unknown";
-                if (message != null) {
-                    try {
-                        var messageDict = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
-                        if (messageDict?.TryGetValue("VideoId", out var videoIdObj) == true) {
-                            videoId = videoIdObj?.ToString() ?? "unknown";
-                        }
-                    } catch {
-                        videoId = "unknown";
-                    }
-                }
+                var properties = CreateBasicProperties("application/json");
+                var videoId = ExtractVideoId(json);
 
                 properties.MessageId = $"video-{videoId}-{DateTime.UtcNow:yyyyMMddHHmmss}";
                 properties.Headers = new Dictionary<string, object>
@@ -133,33 +160,49 @@ public class RabbitMQPublisher : IRabbitMQPublisher, IDisposable {
 
                 _channel.BasicPublish(_exchangeName, _routingKey, properties, body);
 
-                _logger.LogInformation("📤 Mensagem publicada: Exchange={Exchange}, RoutingKey={Key}, VideoId={VideoId}, Size={Size}B",
-                    _exchangeName, _routingKey, videoId, body.Length);
+                _logger.LogInformation(
+                    "Mensagem publicada. Exchange={Exchange}; RoutingKey={RoutingKey}; VideoId={VideoId}; Size={Size}B",
+                    _exchangeName,
+                    _routingKey,
+                    videoId,
+                    body.Length
+                );
             });
-        } catch (Exception ex) {
-            _logger.LogError(ex, "❌ Falha ao publicar mensagem: {MessageType}, Error={Error}",
-                message?.GetType().Name ?? "Unknown", ex.Message);
+        } catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Falha ao publicar mensagem: {MessageType}; Error={Error}",
+                message?.GetType().Name ?? "Unknown",
+                ex.Message
+            );
+
             throw;
         }
     }
 
     /// <summary>
-    /// Método de teste legado (mantido para compatibilidade com IVideoService)
+    /// Publica uma mensagem textual de teste no RabbitMQ.
     /// </summary>
-    public void PublishMessage(string message) {
-        try {
+    /// <param name="message">Mensagem textual que será publicada.</param>
+    /// <exception cref="ArgumentException">Lançada quando a mensagem é vazia.</exception>
+    public void PublishMessage(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            throw new ArgumentException("Mensagem obrigatória.", nameof(message));
+
+        try
+        {
             CreateConnection();
-            if (_channel == null) {
-                _logger.LogWarning("⚠️ Canal RabbitMQ não disponível - mensagem de teste não enviada");
+
+            if (_channel is null)
+            {
+                _logger.LogWarning("Canal RabbitMQ não disponível. Mensagem de teste não enviada.");
                 return;
             }
 
             var body = Encoding.UTF8.GetBytes(message);
-
-            var properties = _channel.CreateBasicProperties();
-            properties.Persistent = true;
-            properties.ContentType = "text/plain";
-            properties.DeliveryMode = 2;
+            var properties = CreateBasicProperties("text/plain");
 
             properties.MessageId = $"test-{DateTime.UtcNow:yyyyMMddHHmmss}";
             properties.Headers = new Dictionary<string, object>
@@ -170,55 +213,145 @@ public class RabbitMQPublisher : IRabbitMQPublisher, IDisposable {
 
             _channel.BasicPublish(_exchangeName, _routingKey, properties, body);
 
-            _logger.LogInformation("🧪 Mensagem de teste publicada: {Message}", message);
-        } catch (Exception ex) {
-            _logger.LogError(ex, "❌ Falha ao publicar mensagem de teste: {Error}", ex.Message);
+            _logger.LogInformation("Mensagem de teste publicada: {Message}", message);
+        } catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao publicar mensagem de teste: {Error}", ex.Message);
             throw;
         }
     }
 
-    private void CreateConnection() {
-        if (_connection != null && _connection.IsOpen && _channel != null && _channel.IsOpen)
+    /// <summary>
+    /// Libera recursos associados à conexão RabbitMQ.
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed)
             return;
 
-        try {
+        CleanupConnection();
+        _disposed = true;
+
+        GC.SuppressFinalize(this);
+    }
+
+    private void CreateConnection()
+    {
+        if (_connection is { IsOpen: true } && _channel is { IsOpen: true })
+            return;
+
+        try
+        {
             var factory = new ConnectionFactory {
                 HostName = _hostName,
                 Port = _port,
                 UserName = _userName,
                 Password = _password,
+                VirtualHost = _virtualHost,
                 AutomaticRecoveryEnabled = true,
                 RequestedHeartbeat = TimeSpan.FromSeconds(60),
                 NetworkRecoveryInterval = TimeSpan.FromSeconds(5)
             };
 
-            _connection?.Dispose();
-            _connection = factory.CreateConnection();
             _channel?.Dispose();
+            _connection?.Dispose();
+
+            _connection = factory.CreateConnection();
             _channel = _connection.CreateModel();
 
-            _logger.LogDebug("🔗 Conexão RabbitMQ criada/reativada");
-        } catch (Exception ex) {
-            _logger.LogError(ex, "❌ Falha ao criar conexão RabbitMQ: {Error}", ex.Message);
+            _logger.LogDebug(
+                "Conexão RabbitMQ criada. Host={Host}; Port={Port}; User={User}; VirtualHost={VirtualHost}",
+                _hostName,
+                _port,
+                _userName,
+                _virtualHost
+            );
+        } catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Falha ao criar conexão RabbitMQ. Host={Host}; Port={Port}; User={User}; VirtualHost={VirtualHost}; Error={Error}",
+                _hostName,
+                _port,
+                _userName,
+                _virtualHost,
+                ex.Message
+            );
+
             throw;
         }
     }
 
-    private void CleanupConnection() {
-        try {
-            _channel?.Close(200, "Cleanup");
-            _connection?.Close(200, "Cleanup");
-            _logger.LogDebug("🧹 Conexão RabbitMQ limpa");
-        } catch (Exception ex) {
-            _logger.LogWarning(ex, "⚠️ Erro no cleanup RabbitMQ: {Error}", ex.Message);
+    private IBasicProperties CreateBasicProperties(string contentType)
+    {
+        if (_channel is null)
+            throw new InvalidOperationException("Canal RabbitMQ não inicializado.");
+
+        var properties = _channel.CreateBasicProperties();
+
+        properties.Persistent = true;
+        properties.ContentType = contentType;
+        properties.DeliveryMode = 2;
+
+        return properties;
+    }
+
+    private static string ExtractVideoId(string json)
+    {
+        try
+        {
+            var messageDict = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+
+            return messageDict is not null &&
+                   messageDict.TryGetValue("VideoId", out var videoIdObj) &&
+                   videoIdObj is not null
+                ? videoIdObj.ToString() ?? "unknown"
+                : "unknown";
+        } catch
+        {
+            return "unknown";
         }
     }
 
-    public void Dispose() {
-        if (!_disposed) {
-            CleanupConnection();
-            _disposed = true;
-            GC.SuppressFinalize(this);
+    private void CleanupConnection()
+    {
+        try
+        {
+            if (_channel is { IsOpen: true })
+                _channel.Close(200, "Cleanup");
+
+            if (_connection is { IsOpen: true })
+                _connection.Close(200, "Cleanup");
+
+            _channel?.Dispose();
+            _connection?.Dispose();
+
+            _logger.LogDebug("Conexão RabbitMQ limpa.");
+        } catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Erro no cleanup RabbitMQ: {Error}", ex.Message);
+        } finally
+        {
+            _channel = null;
+            _connection = null;
         }
+    }
+
+    private static string GetConfigurationValue(IConfiguration configuration, string key, string defaultValue)
+    {
+        var value = configuration[key];
+
+        return string.IsNullOrWhiteSpace(value)
+            ? defaultValue
+            : value;
+    }
+
+    private static int GetConfigurationIntValue(IConfiguration configuration, string key, int defaultValue)
+    {
+        var value = configuration[key];
+
+        return int.TryParse(value, out var parsedValue)
+            ? parsedValue
+            : defaultValue;
     }
 }
