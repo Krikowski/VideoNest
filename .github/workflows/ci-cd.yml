@@ -111,6 +111,49 @@ jobs:
             New-Item -ItemType Directory -Path "C:\deploy\videonest\logs" -Force
           }
 
+      - name: Configure web.config for IIS
+        shell: powershell
+        run: |
+          $webConfigPath = "C:\deploy\videonest\web.config"
+
+          if (!(Test-Path $webConfigPath)) {
+            throw "web.config não encontrado em $webConfigPath"
+          }
+
+          [xml]$xml = Get-Content $webConfigPath
+
+          $aspNetCore = $xml.configuration.location.'system.webServer'.aspNetCore
+
+          if ($null -eq $aspNetCore) {
+            throw "Nó aspNetCore não encontrado no web.config"
+          }
+
+          $aspNetCore.SetAttribute("stdoutLogEnabled", "true")
+          $aspNetCore.SetAttribute("stdoutLogFile", ".\logs\stdout")
+
+          if ($null -eq $aspNetCore.environmentVariables) {
+            $environmentVariables = $xml.CreateElement("environmentVariables")
+            $aspNetCore.AppendChild($environmentVariables) | Out-Null
+          }
+
+          $existing = $aspNetCore.environmentVariables.environmentVariable | Where-Object {
+            $_.name -eq "ASPNETCORE_ENVIRONMENT"
+          }
+
+          if ($null -eq $existing) {
+            $envVar = $xml.CreateElement("environmentVariable")
+            $envVar.SetAttribute("name", "ASPNETCORE_ENVIRONMENT")
+            $envVar.SetAttribute("value", "Demo")
+            $aspNetCore.environmentVariables.AppendChild($envVar) | Out-Null
+          } else {
+            $existing.SetAttribute("value", "Demo")
+          }
+
+          $xml.Save($webConfigPath)
+
+          Write-Host "web.config configurado para ASPNETCORE_ENVIRONMENT=Demo"
+          Get-Content $webConfigPath
+
       - name: Grant IIS AppPool permissions
         shell: powershell
         run: |
@@ -167,10 +210,13 @@ jobs:
 
           Write-Host "==== Recent stdout logs ===="
           if (Test-Path "C:\deploy\videonest\logs") {
-            Get-ChildItem "C:\deploy\videonest\logs" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 3 | ForEach-Object {
-              Write-Host "---- $($_.FullName) ----"
-              Get-Content $_.FullName -Tail 80
-            }
+            Get-ChildItem "C:\deploy\videonest\logs" -File |
+              Sort-Object LastWriteTime -Descending |
+              Select-Object -First 3 |
+              ForEach-Object {
+                Write-Host "---- $($_.FullName) ----"
+                Get-Content $_.FullName -Tail 80
+              }
           }
 
           throw "Health check failed. Application did not return HTTP 200."
