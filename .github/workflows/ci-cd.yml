@@ -122,12 +122,28 @@ jobs:
           Import-Module WebAdministration
           Start-WebSite -Name "VideoNest"
 
-      - name: Health check
+      - name: Health check and IIS diagnostics
         shell: powershell
         run: |
-          Start-Sleep -Seconds 5
+          Start-Sleep -Seconds 8
+
+          Write-Host "==== IIS Site Status ===="
+          Import-Module WebAdministration
+          Get-Website -Name "VideoNest" | Format-List *
+
+          Write-Host "==== IIS AppPool Status ===="
+          Get-WebAppPoolState -Name "VideoNestPool"
+
+          Write-Host "==== Deploy Folder Files ===="
+          Get-ChildItem "C:\deploy\videonest" | Select-Object Name, Length, LastWriteTime
+
+          Write-Host "==== Web.config ===="
+          Get-Content "C:\deploy\videonest\web.config"
+
+          Write-Host "==== Testing URLs ===="
 
           $urls = @(
+            "http://localhost:5002/",
             "http://localhost:5002/health",
             "http://localhost:5002/swagger/index.html",
             "http://localhost:5002/index.html"
@@ -135,15 +151,26 @@ jobs:
 
           foreach ($url in $urls) {
             try {
+              Write-Host "Testing $url"
               $response = Invoke-WebRequest -Uri $url -UseBasicParsing -ErrorAction Stop
-
-              if ($response.StatusCode -eq 200) {
-                Write-Host "Health check OK: $url"
-                exit 0
-              }
+              Write-Host "OK $url - Status: $($response.StatusCode)"
+              exit 0
             } catch {
-              Write-Host "Failed: $url"
+              Write-Host "FAILED $url"
+              Write-Host $_.Exception.Message
+
+              if ($_.Exception.Response) {
+                Write-Host "StatusCode:" $_.Exception.Response.StatusCode.value__
+              }
             }
           }
 
-          throw "Health check failed. No valid endpoint returned HTTP 200."
+          Write-Host "==== Recent stdout logs ===="
+          if (Test-Path "C:\deploy\videonest\logs") {
+            Get-ChildItem "C:\deploy\videonest\logs" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 3 | ForEach-Object {
+              Write-Host "---- $($_.FullName) ----"
+              Get-Content $_.FullName -Tail 80
+            }
+          }
+
+          throw "Health check failed. Application did not return HTTP 200."
