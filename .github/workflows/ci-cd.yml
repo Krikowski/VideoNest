@@ -80,4 +80,11 @@ jobs:
         shell: powershell
         run: |
           Start-Sleep -Seconds 5
-          Invoke-WebRequest -Uri "http://localhost:5002/" -UseBasicParsing
+
+          $response = Invoke-WebRequest -Uri "http://localhost:5002/health" -UseBasicParsing
+
+          if ($response.StatusCode -ne 200) {
+            throw "Health check failed. Status code: $($response.StatusCode)"
+          }
+
+          Write-Host "Health check OK. Status code: $($response.StatusCode)"
