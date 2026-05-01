@@ -2,45 +2,91 @@ name: VideoNest CI/CD
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  packages: write
+
+env:
+  DOTNET_VERSION: "8.0.x"
+  PROJECT_PATH: "VideoNest/VideoNest.csproj"
+  TEST_PROJECT_PATH: "VideoNest.UnitTests/VideoNest.UnitTests.csproj"
+
 jobs:
-  ci-cd:
-    runs-on: [self-hosted, Windows, X64, iis, local]
+  ci:
+    name: CI - Build, Test and Publish Artifact
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: List repository files
-        shell: powershell
-        run: |
-          Get-ChildItem -Recurse -Depth 3
-
-      - name: Setup .NET 8
+      - name: Setup .NET with NuGet cache
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
 
-      - name: Restore
-        run: dotnet restore ./VideoNest/VideoNest.csproj
+      - name: Restore API
+        run: dotnet restore ${{ env.PROJECT_PATH }}
 
-      - name: Build
-        run: dotnet build ./VideoNest/VideoNest.csproj -c Release --no-restore
+      - name: Restore tests
+        run: dotnet restore ${{ env.TEST_PROJECT_PATH }}
 
-      - name: Test
-        run: dotnet test ./VideoNest/VideoNest.csproj -c Release --no-build --verbosity normal
+      - name: Build API
+        run: dotnet build ${{ env.PROJECT_PATH }} --configuration Release --no-restore
 
-      - name: Publish
-        run: dotnet publish ./VideoNest/VideoNest.csproj -c Release -o ./publish --no-build
+      - name: Build tests
+        run: dotnet build ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-restore
+
+      - name: Run tests
+        run: dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx"
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: videonest-test-results
+          path: "**/TestResults/*.trx"
+          retention-days: 7
+
+      - name: Publish API
+        run: dotnet publish ${{ env.PROJECT_PATH }} --configuration Release --no-build --output ./publish
+
+      - name: Upload published artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: videonest-api
+          path: ./publish
+          retention-days: 14
+
+  cd-iis:
+    name: CD - Deploy to Local IIS
+    runs-on: [self-hosted, Windows, X64, iis, local]
+    needs: ci
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Download published artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: videonest-api
+          path: C:\actions\videonest-api
 
       - name: Stop IIS site
         shell: powershell
         run: |
           Import-Module WebAdministration
-          if ((Get-Website -Name "VideoNest").State -eq "Started") {
+
+          $site = Get-Website -Name "VideoNest" -ErrorAction Stop
+
+          if ($site.State -eq "Started") {
             Stop-WebSite -Name "VideoNest"
           }
 
@@ -48,24 +94,24 @@ jobs:
         shell: powershell
         run: |
           if (!(Test-Path "C:\deploy\videonest")) {
-            New-Item -ItemType Directory -Path "C:\deploy\videonest"
+            New-Item -ItemType Directory -Path "C:\deploy\videonest" -Force
           }
 
           Remove-Item "C:\deploy\videonest\*" -Recurse -Force -ErrorAction SilentlyContinue
 
-      - name: Deploy files
+      - name: Deploy files to IIS folder
         shell: powershell
         run: |
-          Copy-Item ".\publish\*" "C:\deploy\videonest" -Recurse -Force
+          Copy-Item "C:\actions\videonest-api\*" "C:\deploy\videonest" -Recurse -Force
 
       - name: Create logs folder
         shell: powershell
         run: |
           if (!(Test-Path "C:\deploy\videonest\logs")) {
-            New-Item -ItemType Directory -Path "C:\deploy\videonest\logs"
+            New-Item -ItemType Directory -Path "C:\deploy\videonest\logs" -Force
           }
 
-      - name: Grant IIS permissions
+      - name: Grant IIS AppPool permissions
         shell: powershell
         run: |
           icacls "C:\deploy\videonest" /grant "IIS AppPool\VideoNestPool:(OI)(CI)(M)" /T
@@ -81,25 +127,23 @@ jobs:
         run: |
           Start-Sleep -Seconds 5
 
-          Write-Host "Testando URLs disponíveis..."
+          $urls = @(
+            "http://localhost:5002/health",
+            "http://localhost:5002/swagger/index.html",
+            "http://localhost:5002/index.html"
+          )
 
-          try {
-            Invoke-WebRequest -Uri "http://localhost:5002/health" -UseBasicParsing
-            Write-Host "/health OK"
-          } catch {
-            Write-Host "/health falhou"
+          foreach ($url in $urls) {
+            try {
+              $response = Invoke-WebRequest -Uri $url -UseBasicParsing -ErrorAction Stop
+
+              if ($response.StatusCode -eq 200) {
+                Write-Host "Health check OK: $url"
+                exit 0
+              }
+            } catch {
+              Write-Host "Failed: $url"
+            }
           }
 
-          try {
-            Invoke-WebRequest -Uri "http://localhost:5002/swagger/index.html" -UseBasicParsing
-            Write-Host "/swagger/index.html OK"
-          } catch {
-            Write-Host "/swagger/index.html falhou"
-          }
-
-          try {
-            Invoke-WebRequest -Uri "http://localhost:5002/index.html" -UseBasicParsing
-            Write-Host "/index.html OK"
-          } catch {
-            Write-Host "/index.html falhou"
-          }
+          throw "Health check failed. No valid endpoint returned HTTP 200."
