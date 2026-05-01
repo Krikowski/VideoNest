@@ -1,4 +1,4 @@
-name: CI-CD VideoNest IIS
+name: VideoNest CI/CD
 
 on:
   push:
