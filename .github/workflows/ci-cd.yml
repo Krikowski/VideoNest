@@ -79,7 +79,7 @@ jobs:
           name: videonest-api
           path: C:\actions\videonest-api
 
-      - name: Stop IIS site
+      - name: Stop IIS site and app pool
         shell: powershell
         run: |
           Import-Module WebAdministration
@@ -89,6 +89,12 @@ jobs:
           if ($site.State -eq "Started") {
             Stop-WebSite -Name "VideoNest"
           }
+
+          if ((Get-WebAppPoolState -Name "VideoNestPool").Value -ne "Stopped") {
+            Stop-WebAppPool -Name "VideoNestPool"
+          }
+
+          Start-Sleep -Seconds 8
 
       - name: Clean deploy folder
         shell: powershell
@@ -102,7 +108,7 @@ jobs:
       - name: Deploy files to IIS folder
         shell: powershell
         run: |
-          Copy-Item "C:\actions\videonest-api\*" "C:\deploy\videonest" -Recurse -Force
+          Copy-Item "C:\actions\videonest-api\*" "C:\deploy\videonest" -Recurse -Force -Force
 
       - name: Create logs folder
         shell: powershell
@@ -159,16 +165,18 @@ jobs:
         run: |
           icacls "C:\deploy\videonest" /grant "IIS AppPool\VideoNestPool:(OI)(CI)(M)" /T
 
-      - name: Start IIS site
+      - name: Start IIS app pool and site
         shell: powershell
         run: |
           Import-Module WebAdministration
+
+          Start-WebAppPool -Name "VideoNestPool"
           Start-WebSite -Name "VideoNest"
 
       - name: Health check and IIS diagnostics
         shell: powershell
         run: |
-          Start-Sleep -Seconds 8
+          Start-Sleep -Seconds 10
 
           Write-Host "==== IIS Site Status ===="
           Import-Module WebAdministration
