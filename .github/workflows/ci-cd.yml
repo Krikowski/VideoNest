@@ -108,7 +108,7 @@ jobs:
       - name: Deploy files to IIS folder
         shell: powershell
         run: |
-          Copy-Item "C:\actions\videonest-api\*" "C:\deploy\videonest" -Recurse -Force -Force
+          Copy-Item "C:\actions\videonest-api\*" "C:\deploy\videonest" -Recurse -Force
 
       - name: Create logs folder
         shell: powershell
