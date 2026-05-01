@@ -14,7 +14,7 @@ Consulta de status e resultados
 Escalabilidade baseada em microsserviços
 
 ## 🏗️ Arquitetura
-.NET 8 (Web API)
+.NET 8 (Web API) 
 RabbitMQ (mensageria)
 MongoDB (persistência)
 Redis (cache)
