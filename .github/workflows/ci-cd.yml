@@ -90,7 +90,9 @@ jobs:
             Stop-WebSite -Name "VideoNest"
           }
 
-          if ((Get-WebAppPoolState -Name "VideoNestPool").Value -ne "Stopped") {
+          $appPoolState = Get-WebAppPoolState -Name "VideoNestPool"
+
+          if ($appPoolState.Value -ne "Stopped") {
             Stop-WebAppPool -Name "VideoNestPool"
           }
 
@@ -117,7 +119,7 @@ jobs:
             New-Item -ItemType Directory -Path "C:\deploy\videonest\logs" -Force
           }
 
-            - name: Configure web.config for IIS
+      - name: Configure web.config for IIS
         shell: powershell
         run: |
           $webConfigPath = "C:\deploy\videonest\web.config"
@@ -157,7 +159,7 @@ jobs:
 
           $xml.Save($webConfigPath)
 
-          Write-Host "web.config configurado para ASPNETCORE_ENVIRONMENT=Demo"
+          Write-Host "web.config configurado para IIS:"
           Get-Content $webConfigPath
 
       - name: Grant IIS AppPool permissions
@@ -171,6 +173,7 @@ jobs:
           Import-Module WebAdministration
 
           Start-WebAppPool -Name "VideoNestPool"
+          Start-Sleep -Seconds 3
           Start-WebSite -Name "VideoNest"
 
       - name: Health check and IIS diagnostics
@@ -217,6 +220,7 @@ jobs:
           }
 
           Write-Host "==== Recent stdout logs ===="
+
           if (Test-Path "C:\deploy\videonest\logs") {
             Get-ChildItem "C:\deploy\videonest\logs" -File |
               Sort-Object LastWriteTime -Descending |
