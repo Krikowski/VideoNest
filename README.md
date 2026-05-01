@@ -13,7 +13,7 @@ Processamento assíncrono via fila
 Consulta de status e resultados
 Escalabilidade baseada em microsserviços
 
-## 🏗️ Arquitetura
+## 🏗️ Arquitetura   
 .NET 8 (Web API)   
 RabbitMQ (mensageria)
 MongoDB (persistência)
