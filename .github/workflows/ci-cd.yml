@@ -14,37 +14,44 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: List repository files
+        shell: powershell
+        run: |
+          Get-ChildItem -Recurse -Depth 3
+
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
       - name: Restore
-        run: dotnet restore VideoNest.sln
+        run: dotnet restore ./VideoNest/VideoNest.csproj
 
       - name: Build
-        run: dotnet build VideoNest.sln -c Release --no-restore
+        run: dotnet build ./VideoNest/VideoNest.csproj -c Release --no-restore
 
       - name: Test
-        run: dotnet test VideoNest.sln -c Release --no-build
+        run: dotnet test ./VideoNest/VideoNest.csproj -c Release --no-build --verbosity normal
 
       - name: Publish
-        run: dotnet publish ./VideoNest/VideoNest.csproj -c Release -o ./publish
+        run: dotnet publish ./VideoNest/VideoNest.csproj -c Release -o ./publish --no-build
 
       - name: Stop IIS site
         shell: powershell
         run: |
           Import-Module WebAdministration
-          Stop-WebSite -Name "VideoNest"
+          if ((Get-Website -Name "VideoNest").State -eq "Started") {
+            Stop-WebSite -Name "VideoNest"
+          }
 
       - name: Clean deploy folder
         shell: powershell
         run: |
-          if (Test-Path "C:\deploy\videonest") {
-            Remove-Item "C:\deploy\videonest\*" -Recurse -Force
-          } else {
+          if (!(Test-Path "C:\deploy\videonest")) {
             New-Item -ItemType Directory -Path "C:\deploy\videonest"
           }
+
+          Remove-Item "C:\deploy\videonest\*" -Recurse -Force -ErrorAction SilentlyContinue
 
       - name: Deploy files
         shell: powershell
