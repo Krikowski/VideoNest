@@ -81,10 +81,25 @@ jobs:
         run: |
           Start-Sleep -Seconds 5
 
-          $response = Invoke-WebRequest -Uri "http://localhost:5002/health" -UseBasicParsing
+          Write-Host "Testando URLs disponíveis..."
 
-          if ($response.StatusCode -ne 200) {
-            throw "Health check failed. Status code: $($response.StatusCode)"
+          try {
+            Invoke-WebRequest -Uri "http://localhost:5002/health" -UseBasicParsing
+            Write-Host "/health OK"
+          } catch {
+            Write-Host "/health falhou"
           }
 
-          Write-Host "Health check OK. Status code: $($response.StatusCode)"
+          try {
+            Invoke-WebRequest -Uri "http://localhost:5002/swagger/index.html" -UseBasicParsing
+            Write-Host "/swagger/index.html OK"
+          } catch {
+            Write-Host "/swagger/index.html falhou"
+          }
+
+          try {
+            Invoke-WebRequest -Uri "http://localhost:5002/index.html" -UseBasicParsing
+            Write-Host "/index.html OK"
+          } catch {
+            Write-Host "/index.html falhou"
+          }

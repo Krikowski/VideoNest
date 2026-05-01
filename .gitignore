@@ -21,8 +21,9 @@ rad.json
 #Test results file
 TestResults.xml
 *.vsidx
-/VideoNest/obj
+/VideoNest/obj/*
 *.pdb
+<<<<<<< Updated upstream
 /VideoNest/.vs
 /VideoNest/bin
 VideoNest/obj/Debug/net8.0/VideoNest.assets.cache
@@ -39,3 +40,7 @@ VideoNest/obj/Debug/net8.0/VideoNest.assets.cache
 /VideoNest.UnitTests/.vs/VideoNest.UnitTests/v17
 /VideoNest.UnitTests/obj
 /VideoNest.UnitTests/.vs/VideoNest.UnitTests/DesignTimeBuild
+=======
+/VideoNest/.vs/*
+/VideoNest/*/Debug
+>>>>>>> Stashed changes
