@@ -117,7 +117,7 @@ jobs:
             New-Item -ItemType Directory -Path "C:\deploy\videonest\logs" -Force
           }
 
-      - name: Configure web.config for IIS
+            - name: Configure web.config for IIS
         shell: powershell
         run: |
           $webConfigPath = "C:\deploy\videonest\web.config"
@@ -128,7 +128,7 @@ jobs:
 
           [xml]$xml = Get-Content $webConfigPath
 
-          $aspNetCore = $xml.configuration.location.'system.webServer'.aspNetCore
+          $aspNetCore = $xml.SelectSingleNode("//aspNetCore")
 
           if ($null -eq $aspNetCore) {
             throw "Nó aspNetCore não encontrado no web.config"
@@ -137,20 +137,20 @@ jobs:
           $aspNetCore.SetAttribute("stdoutLogEnabled", "true")
           $aspNetCore.SetAttribute("stdoutLogFile", ".\logs\stdout")
 
-          if ($null -eq $aspNetCore.environmentVariables) {
+          $environmentVariables = $aspNetCore.SelectSingleNode("environmentVariables")
+
+          if ($null -eq $environmentVariables) {
             $environmentVariables = $xml.CreateElement("environmentVariables")
             $aspNetCore.AppendChild($environmentVariables) | Out-Null
           }
 
-          $existing = $aspNetCore.environmentVariables.environmentVariable | Where-Object {
-            $_.name -eq "ASPNETCORE_ENVIRONMENT"
-          }
+          $existing = $environmentVariables.SelectSingleNode("environmentVariable[@name='ASPNETCORE_ENVIRONMENT']")
 
           if ($null -eq $existing) {
             $envVar = $xml.CreateElement("environmentVariable")
             $envVar.SetAttribute("name", "ASPNETCORE_ENVIRONMENT")
             $envVar.SetAttribute("value", "Demo")
-            $aspNetCore.environmentVariables.AppendChild($envVar) | Out-Null
+            $environmentVariables.AppendChild($envVar) | Out-Null
           } else {
             $existing.SetAttribute("value", "Demo")
           }
